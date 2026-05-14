@@ -446,7 +446,7 @@ class SupervisionTemplateResponse(BaseModel):
         from_attributes = True
 
 class SupervisionTemplateItemCreate(BaseModel):
-    template_id: int
+    template_id: Optional[int] = None
     item_name: str
     standard: Optional[str] = None
     score_standard: Optional[str] = None
@@ -504,7 +504,7 @@ class SupervisionPlanResponse(BaseModel):
 
 # === Supervision Execution ===
 class SupervisionExecutionCreate(BaseModel):
-    plan_id: int
+    plan_id: Optional[int] = None
     template_id: Optional[int] = None
     executor_id: int
     target_department_id: Optional[int] = None
@@ -523,9 +523,9 @@ class SupervisionExecutionUpdate(BaseModel):
 
 class SupervisionExecutionResponse(BaseModel):
     id: int
-    plan_id: int
+    plan_id: Optional[int] = None
     template_id: Optional[int] = None
-    executor_id: int
+    executor_id: Optional[int] = None
     target_department_id: Optional[int] = None
     execution_date: Optional[date] = None
     status: str
@@ -540,11 +540,11 @@ class SupervisionExecutionResponse(BaseModel):
 
 # === Supervision Check Item ===
 class SupervisionCheckItemCreate(BaseModel):
-    execution_id: int
+    execution_id: Optional[int] = None
     template_item_id: Optional[int] = None
     result: Optional[str] = None
     opinion: Optional[str] = None
-    inspector_id: int
+    inspector_id: Optional[int] = None
 
 class SupervisionCheckItemUpdate(BaseModel):
     result: Optional[str] = None

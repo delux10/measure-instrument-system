@@ -1,0 +1,161 @@
+/* 深色模式全局样式 */
+html.dark {
+  /* Element Plus 自带 CSS 变量暗色主题 */
+  --el-bg-color: #141414;
+  --el-bg-color-page: #0f0f0f;
+  --el-bg-color-overlay: #1d1d1d;
+  --el-text-color-primary: #e5e5e5;
+  --el-text-color-regular: #c0c0c0;
+  --el-text-color-secondary: #909090;
+  --el-border-color: #333;
+  --el-border-color-light: #2a2a2a;
+  --el-border-color-lighter: #262626;
+  --el-fill-color: #1a1a1a;
+  --el-fill-color-light: #222;
+  --el-fill-color-lighter: #2a2a2a;
+  --el-fill-color-blank: #141414;
+  --el-card-bg-color: #1a1a1a;
+}
+
+/* 主背景 */
+html.dark body,
+html.dark #app,
+html.dark .el-container {
+  background: #0f0f0f !important;
+}
+
+/* 顶部导航栏 */
+html.dark header {
+  background: rgba(30, 30, 30, 0.92) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Logo 文字 */
+html.dark header span[style*="color: #1a1a2e"] {
+  color: #e5e5e5 !important;
+}
+
+/* 导航菜单 */
+html.dark .el-menu--horizontal {
+  background: transparent !important;
+}
+html.dark .el-menu--horizontal .el-menu-item:not(.is-active):not(:hover) {
+  color: #a0a0a0 !important;
+}
+html.dark .el-menu--horizontal .el-menu-item.is-active {
+  color: #409EFF !important;
+}
+html.dark .el-menu--horizontal .el-menu-item:not(.is-active):hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+html.dark .el-menu--horizontal .el-sub-menu__title:not(:hover) {
+  color: #a0a0a0 !important;
+}
+
+/* 主内容区域 */
+html.dark .el-main,
+html.dark div[style*="background: #f5f7fa"] {
+  background: #0f0f0f !important;
+}
+
+/* 深色模式卡片（统一使用 .dark-card 类） */
+html.dark .dark-card {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 快捷操作按钮 */
+html.dark .dark-action {
+  background: #222 !important;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+html.dark .dark-action:hover {
+  background: rgba(64, 158, 255, 0.12) !important;
+}
+
+/* 标题 */
+html.dark h2,
+html.dark h3,
+html.dark div[style*="color: #1a1a2e"] {
+  color: #e5e5e5 !important;
+}
+html.dark div[style*="color: #303133"] {
+  color: #c0c0c0 !important;
+}
+
+/* 快捷操作按钮背景 */
+html.dark div[style*="background: #f5f7fa"] {
+  background: #222 !important;
+}
+html.dark .quick-action-item:hover {
+  background: rgba(64, 158, 255, 0.1) !important;
+}
+
+/* 统计卡片数据 */
+html.dark div[style*="font-size: 28px"] {
+  color: #e5e5e5 !important;
+}
+
+/* 面包屑 */
+html.dark .el-breadcrumb__inner {
+  color: #909090 !important;
+}
+
+/* 表格 */
+html.dark .el-table {
+  --el-table-bg-color: #1a1a1a;
+  --el-table-tr-bg-color: #1a1a1a;
+  --el-table-header-bg-color: #222;
+  --el-table-row-hover-bg-color: #2a2a2a;
+  --el-table-border-color: #333;
+}
+
+/* 对话框 */
+html.dark .el-dialog {
+  --el-dialog-bg-color: #1d1d1d;
+}
+
+/* 输入框 */
+html.dark .el-input__wrapper {
+  background: #222 !important;
+  box-shadow: 0 0 0 1px #333 inset !important;
+}
+html.dark .el-input__inner {
+  color: #e5e5e5 !important;
+}
+
+/* 下拉选择 */
+html.dark .el-select-dropdown {
+  background: #1d1d1d;
+  border-color: #333;
+}
+html.dark .el-select-dropdown__item {
+  color: #c0c0c0;
+}
+html.dark .el-select-dropdown__item.hover {
+  background: #2a2a2a;
+}
+
+/* 标签页 */
+html.dark .el-tabs__item {
+  color: #909090;
+}
+html.dark .el-tabs__item.is-active {
+  color: #409EFF;
+}
+
+/* 分页 */
+html.dark .el-pagination button,
+html.dark .el-pager li {
+  background: transparent !important;
+  color: #909090;
+}
+
+/* 日期选择器 */
+html.dark .el-date-table td {
+  background: transparent;
+}
+html.dark .el-picker-panel {
+  background: #1d1d1d;
+  border-color: #333;
+}
