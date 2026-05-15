@@ -16,6 +16,7 @@ export function getUserInfoApi() {
   return request({ url: '/auth/me', method: 'get' })
 }
 
+// 当前仅清除客户端 token，后端无状态 JWT 无需服务端登出
 export function logoutApi() {
   return Promise.resolve()
 }

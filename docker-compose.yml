@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
       POSTGRES_DB: measure_instruments
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -22,9 +22,9 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/measure_instruments
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/measure_instruments
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: measure-instrument-system-secret-key-2026
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       DEBUG: "False"
       UPLOAD_DIR: /app/uploads
     volumes:
@@ -35,6 +35,7 @@ services:
       - db
       - redis
     restart: always
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   frontend:
     build: ./frontend

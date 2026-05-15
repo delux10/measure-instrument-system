@@ -15,14 +15,21 @@ from app.routers import (
     workflow_router, borrow_router, repair_router
 )
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="测量仪器仪表全生命周期管理系统 API"
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    if not settings.SECRET_KEY:
+        raise RuntimeError("SECRET_KEY 未设置，请通过环境变量 SECRET_KEY 配置")
+    Base.metadata.create_all(bind=engine)
+    for subdir in ["certificates", "contracts", "photos", "evidence", "signatures"]:
+        os.makedirs(os.path.join(settings.UPLOAD_DIR, subdir), exist_ok=True)
+
 
 # CORS
 app.add_middleware(
@@ -32,13 +39,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Create upload directories
-os.makedirs(os.path.join(settings.UPLOAD_DIR, "certificates"), exist_ok=True)
-os.makedirs(os.path.join(settings.UPLOAD_DIR, "contracts"), exist_ok=True)
-os.makedirs(os.path.join(settings.UPLOAD_DIR, "photos"), exist_ok=True)
-os.makedirs(os.path.join(settings.UPLOAD_DIR, "evidence"), exist_ok=True)
-os.makedirs(os.path.join(settings.UPLOAD_DIR, "signatures"), exist_ok=True)
 
 # Static files for uploads
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
