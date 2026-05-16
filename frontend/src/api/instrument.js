@@ -35,3 +35,14 @@ export function getCalibrationAgencies() {
 export function getExpiringInstruments() {
   return request({ url: '/instruments/expiring', method: 'get' })
 }
+
+// === Excel 导入 ===
+export function importInstruments(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/instruments/import',
+    method: 'post',
+    data: formData,
+  })
+}

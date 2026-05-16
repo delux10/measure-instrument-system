@@ -77,6 +77,7 @@
       <div style="display: flex; justify-content: space-between; margin-bottom: 16px">
         <div>
           <el-button type="primary" @click="openCreateDialog">新增仪器</el-button>
+          <el-button type="success" @click="openImportDialog">导入 Excel</el-button>
         </div>
         <div>
           <el-button @click="handleExport">导出 Excel</el-button>
@@ -92,33 +93,42 @@
         style="width: 100%"
         empty-text="暂无仪器数据"
       >
-        <el-table-column prop="code" label="编号" width="120" />
-        <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="model" label="型号" width="130" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small" effect="plain">
-              {{ statusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="department_id" label="所属部门" width="120">
-          <template #default="{ row }">
-            {{ deptName(row.department_id) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="keeper" label="保管人" width="100" />
-        <el-table-column prop="location" label="存放地点" width="140" show-overflow-tooltip />
-        <el-table-column prop="last_cal_date" label="上次检定日期" width="130">
+        <el-table-column prop="code" label="仪器编号" width="120" />
+        <el-table-column prop="name" label="仪器名称" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="model" label="型号规格" width="130" show-overflow-tooltip />
+        <el-table-column prop="serial_no" label="出厂编号" width="130" show-overflow-tooltip />
+        <el-table-column prop="range_value" label="测量范围" width="120" show-overflow-tooltip />
+        <el-table-column prop="accuracy" label="精度等级" width="110" show-overflow-tooltip />
+        <el-table-column prop="scale_interval" label="分度值" width="90" />
+        <el-table-column prop="manufacturer" label="生产厂家" width="140" show-overflow-tooltip />
+        <el-table-column prop="keeper" label="责任人" width="100" />
+        <el-table-column prop="cal_agency" label="检定/校准单位" width="140" show-overflow-tooltip />
+        <el-table-column prop="certificate_no" label="证书编号" width="130" show-overflow-tooltip />
+        <el-table-column prop="last_cal_date" label="检定日期" width="110">
           <template #default="{ row }">{{ formatDate(row.last_cal_date) }}</template>
         </el-table-column>
-        <el-table-column prop="next_cal_date" label="下次检定日期" width="130">
+        <el-table-column prop="next_cal_date" label="有效期至" width="110">
           <template #default="{ row }">
             <span :style="isOverdue(row.next_cal_date) ? 'color: #f56c6c; font-weight: bold' : ''">
               {{ formatDate(row.next_cal_date) }}
             </span>
           </template>
         </el-table-column>
+        <el-table-column prop="cert_confirmed" label="证书确认" width="100" />
+        <el-table-column prop="metrology_characteristic" label="计量特性" width="120" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)" size="small" effect="plain">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="department_id" label="使用部门" width="120">
+          <template #default="{ row }">
+            {{ deptName(row.department_id) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="location" label="安装地点" width="130" show-overflow-tooltip />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
@@ -145,7 +155,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑仪器' : '新增仪器'"
-      width="700px"
+      width="900px"
       :before-close="handleDialogClose"
     >
       <el-form
@@ -157,33 +167,17 @@
         style="padding-right: 20px"
       >
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="仪器编号" prop="code">
               <el-input v-model="form.code" placeholder="请输入仪器编号" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="仪器名称" prop="name">
               <el-input v-model="form.name" placeholder="请输入仪器名称" />
             </el-form-item>
           </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="型号" prop="model">
-              <el-input v-model="form.model" placeholder="请输入型号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="出厂编号" prop="serial_no">
-              <el-input v-model="form.serial_no" placeholder="请输入出厂编号" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="仪器分类" prop="category_id">
               <el-select
                 v-model="form.category_id"
@@ -201,27 +195,23 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="精度" prop="accuracy">
-              <el-input v-model="form.accuracy" placeholder="请输入精度" />
-            </el-form-item>
-          </el-col>
         </el-row>
 
-        <el-form-item label="测量范围" prop="range_value">
-          <el-input v-model="form.range_value" placeholder="请输入测量范围" />
-        </el-form-item>
-
         <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="生产厂家" prop="manufacturer">
-              <el-input v-model="form.manufacturer" placeholder="请输入生产厂家" />
+          <el-col :span="8">
+            <el-form-item label="型号规格" prop="model">
+              <el-input v-model="form.model" placeholder="请输入型号规格" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="购入日期" prop="purchase_date">
+          <el-col :span="8">
+            <el-form-item label="出厂编号" prop="serial_no">
+              <el-input v-model="form.serial_no" placeholder="请输入出厂编号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="出厂日期">
               <el-date-picker
-                v-model="form.purchase_date"
+                v-model="form.manufacture_date"
                 type="date"
                 placeholder="选择日期"
                 style="width: 100%"
@@ -232,8 +222,42 @@
         </el-row>
 
         <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="资产原值" prop="price">
+          <el-col :span="8">
+            <el-form-item label="测量范围">
+              <el-input v-model="form.range_value" placeholder="如：0-150mm" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="精度等级/不确定度">
+              <el-input v-model="form.accuracy" placeholder="如：0.01mm" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="分度值">
+              <el-input v-model="form.scale_interval" placeholder="如：0.01mm" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="生产厂家">
+              <el-input v-model="form.manufacturer" placeholder="请输入生产厂家" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="购入日期">
+              <el-date-picker
+                v-model="form.purchase_date"
+                type="date"
+                placeholder="选择日期"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="资产原值">
               <el-input-number
                 v-model="form.price"
                 :min="0"
@@ -243,8 +267,16 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="管理部门" prop="department_id">
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="责任人">
+              <el-input v-model="form.keeper" placeholder="请输入责任人" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="使用部门" prop="department_id">
               <el-select
                 v-model="form.department_id"
                 placeholder="请选择部门"
@@ -260,23 +292,42 @@
               </el-select>
             </el-form-item>
           </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="保管人" prop="keeper">
-              <el-input v-model="form.keeper" placeholder="请输入保管人" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="存放地点" prop="location">
-              <el-input v-model="form.location" placeholder="请输入存放地点" />
+          <el-col :span="8">
+            <el-form-item label="安装地点">
+              <el-input v-model="form.location" placeholder="请输入安装地点" />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="8">
+            <el-form-item label="检定/校准单位">
+              <el-input v-model="form.cal_agency" placeholder="如：XX省计量科学研究院" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="证书编号">
+              <el-input v-model="form.certificate_no" placeholder="请输入证书编号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="证书确认">
+              <el-select v-model="form.cert_confirmed" placeholder="请选择" style="width: 100%" clearable>
+                <el-option label="已确认" value="confirmed" />
+                <el-option label="未确认" value="unconfirmed" />
+                <el-option label="待确认" value="pending" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="计量特性">
+              <el-input v-model="form.metrology_characteristic" placeholder="请输入计量特性" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
             <el-form-item label="状态" prop="status">
               <el-select v-model="form.status" placeholder="请选择状态" style="width: 100%">
                 <el-option label="在用" value="in_use" />
@@ -288,8 +339,8 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="检定周期(月)" prop="calibration_cycle">
+          <el-col :span="8">
+            <el-form-item label="检定周期(月)">
               <el-input-number
                 v-model="form.calibration_cycle"
                 :min="0"
@@ -302,17 +353,8 @@
         </el-row>
 
         <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="检定方式" prop="cal_method">
-              <el-select v-model="form.cal_method" placeholder="请选择" style="width: 100%" clearable>
-                <el-option label="送检" value="external" />
-                <el-option label="现场" value="onsite" />
-                <el-option label="自检" value="self" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="上次检定日期" prop="last_cal_date">
+          <el-col :span="8">
+            <el-form-item label="检定日期">
               <el-date-picker
                 v-model="form.last_cal_date"
                 type="date"
@@ -322,23 +364,33 @@
               />
             </el-form-item>
           </el-col>
+          <el-col :span="8">
+            <el-form-item label="有效期至">
+              <el-date-picker
+                v-model="form.next_cal_date"
+                type="date"
+                placeholder="选择日期"
+                style="width: 100%"
+                value-format="YYYY-MM-DD"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="检定方式">
+              <el-select v-model="form.cal_method" placeholder="请选择" style="width: 100%" clearable>
+                <el-option label="送检" value="external" />
+                <el-option label="现场" value="onsite" />
+                <el-option label="自检" value="self" />
+              </el-select>
+            </el-form-item>
+          </el-col>
         </el-row>
 
-        <el-form-item label="下次检定日期" prop="next_cal_date">
-          <el-date-picker
-            v-model="form.next_cal_date"
-            type="date"
-            placeholder="选择日期"
-            style="width: 100%"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-
-        <el-form-item label="备注" prop="remark">
+        <el-form-item label="备注">
           <el-input
             v-model="form.remark"
             type="textarea"
-            :rows="3"
+            :rows="2"
             placeholder="请输入备注信息"
           />
         </el-form-item>
@@ -349,18 +401,87 @@
         <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入 Excel 对话框 -->
+    <el-dialog v-model="importDialogVisible" title="导入 Excel 台账" width="700px">
+      <div style="margin-bottom: 16px; padding: 12px; background: #f5f7fa; border-radius: 4px">
+        <p style="margin: 0 0 8px 0; font-weight: 600">支持识别的表头列名：</p>
+        <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.8">
+          仪器编号、仪器名称、型号规格/型号、出厂编号、测量范围、精度等级/不确定度、
+          分度值、出厂日期、生产厂家/厂家、责任人/保管人、检定/校准单位、证书编号、
+          检定日期、有效期/有效期至、证书确认、计量特性、状态、使用部门/部门、
+          安装地点/存放地点、备注、检定周期
+        </p>
+      </div>
+
+      <el-upload
+        ref="uploadRef"
+        drag
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx,.xls"
+        :on-change="handleFileChange"
+        :on-remove="handleFileRemove"
+        style="margin-bottom: 16px"
+      >
+        <el-icon style="font-size: 48px; color: #c0c4cc; margin-bottom: 8px"><UploadFilled /></el-icon>
+        <div style="font-size: 14px; color: #606266">
+          将 Excel 文件拖拽到此处，或 <em style="color: #409eff">点击上传</em>
+        </div>
+        <template #tip>
+          <div style="margin-top: 8px; font-size: 12px; color: #999">
+            仅支持 .xlsx / .xls 格式，第一行为表头，从第二行开始为数据
+          </div>
+        </template>
+      </el-upload>
+
+      <!-- 导入结果 -->
+      <div v-if="importResult" style="padding: 16px; background: #f0f9eb; border-radius: 4px">
+        <p style="margin: 0 0 8px 0; font-weight: 600; color: #67c23a">
+          {{ importResult.message }}
+        </p>
+        <div v-if="importResult.errors && importResult.errors.length > 0" style="margin-top: 8px">
+          <p style="margin: 0 0 4px 0; color: #e6a23c; font-size: 13px">
+            跳过 {{ importResult.errors.length }} 条：
+          </p>
+          <div style="max-height: 200px; overflow-y: auto; font-size: 12px">
+            <div
+              v-for="(err, i) in importResult.errors"
+              :key="i"
+              style="padding: 2px 0; color: #909399"
+            >
+              第 {{ err.row }} 行：{{ err.msg }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="importDialogVisible = false">关闭</el-button>
+        <el-button
+          type="primary"
+          :loading="importing"
+          :disabled="!selectedFile"
+          @click="handleImport"
+        >
+          开始导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
 import {
   getInstrumentList,
   createInstrument,
   updateInstrument,
   deleteInstrument,
   getInstrumentCategories,
+  importInstruments,
 } from '../../api/instrument'
 import { getDepartmentList } from '../../api/system'
 
@@ -375,6 +496,11 @@ const searchQuery = ref('')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingId = ref(null)
+
+const importDialogVisible = ref(false)
+const selectedFile = ref(null)
+const importResult = ref(null)
+const importing = ref(false)
 
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -393,19 +519,25 @@ function initForm() {
     model: '',
     serial_no: '',
     category_id: null,
-    accuracy: '',
     range_value: '',
+    accuracy: '',
+    scale_interval: '',
+    manufacture_date: null,
     manufacturer: '',
     purchase_date: null,
     price: null,
-    department_id: null,
     keeper: '',
+    department_id: null,
     location: '',
+    cal_agency: '',
+    certificate_no: '',
+    cert_confirmed: '',
+    metrology_characteristic: '',
     status: 'in_use',
     calibration_cycle: null,
-    cal_method: '',
     last_cal_date: null,
     next_cal_date: null,
+    cal_method: '',
     remark: '',
   }
 }
@@ -414,9 +546,9 @@ const form = ref(initForm())
 // === 表单校验规则 ===
 const rules = {
   code: [{ required: true, message: '请输入仪器编号', trigger: 'blur' }],
-  model: [{ required: true, message: '请输入型号', trigger: 'blur' }],
+  name: [{ required: true, message: '请输入仪器名称', trigger: 'blur' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }],
-  department_id: [{ required: true, message: '请选择管理部门', trigger: 'change' }],
+  department_id: [{ required: true, message: '请选择使用部门', trigger: 'change' }],
 }
 
 // === 计算属性：前端过滤与分页 ===
@@ -586,19 +718,25 @@ function openEditDialog(row) {
     model: row.model || '',
     serial_no: row.serial_no || '',
     category_id: row.category_id || null,
-    accuracy: row.accuracy || '',
     range_value: row.range_value || '',
+    accuracy: row.accuracy || '',
+    scale_interval: row.scale_interval || '',
+    manufacture_date: row.manufacture_date || '',
     manufacturer: row.manufacturer || '',
     purchase_date: row.purchase_date || '',
     price: row.price ?? null,
-    department_id: row.department_id || null,
     keeper: row.keeper || '',
+    department_id: row.department_id || null,
     location: row.location || '',
+    cal_agency: row.cal_agency || '',
+    certificate_no: row.certificate_no || '',
+    cert_confirmed: row.cert_confirmed || '',
+    metrology_characteristic: row.metrology_characteristic || '',
     status: row.status || 'in_use',
     calibration_cycle: row.calibration_cycle ?? null,
-    cal_method: row.cal_method || '',
     last_cal_date: row.last_cal_date || '',
     next_cal_date: row.next_cal_date || '',
+    cal_method: row.cal_method || '',
     remark: row.remark || '',
   }
   dialogVisible.value = true
@@ -643,6 +781,40 @@ async function handleDelete(row) {
     await fetchInstruments()
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+// === Excel 导入 ===
+function openImportDialog() {
+  selectedFile.value = null
+  importResult.value = null
+  importDialogVisible.value = true
+}
+
+function handleFileChange(file) {
+  selectedFile.value = file.raw
+}
+
+function handleFileRemove() {
+  selectedFile.value = null
+}
+
+async function handleImport() {
+  if (!selectedFile.value) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  importing.value = true
+  importResult.value = null
+  try {
+    const res = await importInstruments(selectedFile.value)
+    importResult.value = res.data
+    ElMessage.success(res.data.message || '导入完成')
+    await fetchInstruments()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '导入失败')
+  } finally {
+    importing.value = false
   }
 }
 
