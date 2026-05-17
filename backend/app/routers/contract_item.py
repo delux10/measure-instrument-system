@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.contract import ContractItem
 from app.models.user import User
 from app.schemas import ContractItemCreate, ContractItemUpdate, ContractItemResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -18,6 +18,7 @@ def list_items(
     query = db.query(ContractItem)
     if contract_id:
         query = query.filter(ContractItem.contract_id == contract_id)
+    query = apply_department_filter(query, ContractItem, current_user)
     return query.all()
 
 @router.get("/{item_id}", response_model=ContractItemResponse)

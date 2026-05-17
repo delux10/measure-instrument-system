@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.contract import CalibrationContract, ContractStatus
 from app.models.user import User
 from app.schemas import ContractCreate, ContractUpdate, ContractResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -27,6 +27,7 @@ def list_contracts(
         query = query.filter(
             CalibrationContract.contract_no.ilike(like) | CalibrationContract.name.ilike(like)
         )
+    query = apply_department_filter(query, CalibrationContract, current_user)
     return query.all()
 
 @router.get("/{contract_id}", response_model=ContractResponse)

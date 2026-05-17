@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
@@ -13,4 +14,5 @@ class User(BaseModel):
     department_id = Column(Integer, ForeignKey("departments.id"))
     role = Column(String(20), default="user")
     is_active = Column(Boolean, default=True)
+    module_permissions = Column(JSONB, nullable=True)
     department = relationship("Department", foreign_keys=[department_id])

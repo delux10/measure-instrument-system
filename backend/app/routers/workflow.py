@@ -8,7 +8,7 @@ from app.schemas import (
     WorkflowCreate, WorkflowUpdate, WorkflowResponse,
     WorkflowNodeCreate, WorkflowNodeUpdate, WorkflowNodeResponse
 )
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -29,6 +29,7 @@ def list_workflows(
         query = query.filter(Workflow.status == status)
     if initiator_id:
         query = query.filter(Workflow.initiator_id == initiator_id)
+    query = apply_department_filter(query, Workflow, current_user)
     return query.all()
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)

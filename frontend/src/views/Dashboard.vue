@@ -74,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
 import {
@@ -149,12 +149,22 @@ async function fetchDashboardData() {
   }
 }
 
-const quickActions = [
-  { name: '新增仪器', desc: '录入新设备信息', icon: Plus, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', handler: () => router.push('/instruments') },
-  { name: '检定记录', desc: '登记检定结果', icon: Edit, bg: 'rgba(103,194,58,0.1)', color: '#67C23A', handler: () => router.push('/calibration') },
-  { name: '合同对账', desc: '比对合同与执行', icon: Document, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', handler: () => router.push('/contract') },
-  { name: '系统设置', desc: '用户与权限管理', icon: Setting, bg: 'rgba(144,147,153,0.1)', color: '#909399', handler: () => router.push('/system/users') },
-]
+const quickActions = computed(() => {
+  const actions = []
+  if (userStore.canAccessModule('instruments')) {
+    actions.push({ name: '新增仪器', desc: '录入新设备信息', icon: Plus, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', handler: () => router.push('/instruments') })
+  }
+  if (userStore.canAccessModule('calibration')) {
+    actions.push({ name: '检定记录', desc: '登记检定结果', icon: Edit, bg: 'rgba(103,194,58,0.1)', color: '#67C23A', handler: () => router.push('/calibration') })
+  }
+  if (userStore.canAccessModule('contracts')) {
+    actions.push({ name: '合同对账', desc: '比对合同与执行', icon: Document, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', handler: () => router.push('/contract') })
+  }
+  if (userStore.isAdmin) {
+    actions.push({ name: '系统设置', desc: '用户与权限管理', icon: Setting, bg: 'rgba(144,147,153,0.1)', color: '#909399', handler: () => router.push('/system/users') })
+  }
+  return actions
+})
 
 onMounted(() => {
   fetchDashboardData()

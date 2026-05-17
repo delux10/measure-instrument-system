@@ -113,15 +113,17 @@ def test_validate_row_all_required_present():
     assert len(errors) == 0
 
 
-def test_validate_row_department_not_found_soft_fail():
+def test_validate_row_unknown_department_allowed():
+    """Unknown departments are allowed — they will be auto-created during import."""
     errors = validate_row(
-        {"code": "M001", "name": "卡尺", "model": "A1", "category_name": "长度类", "department_name": "不存在部门"},
+        {"code": "M001", "name": "卡尺", "model": "A1", "category_name": "长度类", "department_name": "新部门"},
         set(),
         {"长度类": 1},
         {},
         {}
     )
-    assert any("部门" in (e.field or "") for e in errors)
+    # No error for unknown department — it will be auto-created
+    assert not any("部门" in (e.field or "") for e in errors)
 
 
 def test_validate_row_invalid_date():

@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.repair import RepairRecord
 from app.models.user import User
 from app.schemas import RepairCreate, RepairUpdate, RepairResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -18,6 +18,7 @@ def list_repairs(
     query = db.query(RepairRecord)
     if instrument_id:
         query = query.filter(RepairRecord.instrument_id == instrument_id)
+    query = apply_department_filter(query, RepairRecord, current_user)
     return query.order_by(RepairRecord.repair_date.desc().nullslast()).all()
 
 @router.get("/{repair_id}", response_model=RepairResponse)

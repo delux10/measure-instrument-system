@@ -34,27 +34,27 @@
         :ellipsis="false"
         style="flex: 1; border-bottom: none; height: 60px; background: transparent; margin-left: 8px"
       >
-        <el-menu-item index="/dashboard" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
+        <el-menu-item v-if="userStore.canAccessModule('dashboard')" index="/dashboard" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
           <el-icon style="margin-right: 6px; font-size: 16px"><DataBoard /></el-icon>
           <span>仪表盘</span>
         </el-menu-item>
-        <el-menu-item index="/instruments" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
+        <el-menu-item v-if="userStore.canAccessModule('instruments')" index="/instruments" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
           <el-icon style="margin-right: 6px; font-size: 16px"><List /></el-icon>
           <span>仪器台账</span>
         </el-menu-item>
-        <el-menu-item index="/calibration" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
+        <el-menu-item v-if="userStore.canAccessModule('calibration')" index="/calibration" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
           <el-icon style="margin-right: 6px; font-size: 16px"><Calendar /></el-icon>
           <span>检定计划</span>
         </el-menu-item>
-        <el-menu-item index="/contract" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
+        <el-menu-item v-if="userStore.canAccessModule('contracts')" index="/contract" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
           <el-icon style="margin-right: 6px; font-size: 16px"><Document /></el-icon>
           <span>合同管理</span>
         </el-menu-item>
-        <el-menu-item index="/supervision" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
+        <el-menu-item v-if="userStore.canAccessModule('supervision')" index="/supervision" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px; border-radius: 8px; transition: all 0.2s">
           <el-icon style="margin-right: 6px; font-size: 16px"><WarningFilled /></el-icon>
           <span>监督管理</span>
         </el-menu-item>
-        <el-sub-menu index="system" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px">
+        <el-sub-menu v-if="userStore.isAdmin" index="system" style="border-bottom: none; height: 60px; line-height: 60px; margin: 0 2px">
           <template #title>
             <el-icon style="margin-right: 6px; font-size: 16px"><Setting /></el-icon>
             <span>系统管理</span>

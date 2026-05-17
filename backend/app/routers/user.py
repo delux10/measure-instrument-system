@@ -23,7 +23,7 @@ def get_user(user_id: int, db: Session = Depends(get_db), current_user: User = D
 def create_user(
     user: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["admin", "system_manager"]))
+    current_user: User = Depends(require_role(["admin"]))
 ):
     existing = db.query(User).filter(User.username == user.username).first()
     if existing:
@@ -35,7 +35,8 @@ def create_user(
         phone=user.phone,
         email=user.email,
         department_id=user.department_id,
-        role=user.role
+        role=user.role,
+        module_permissions=user.module_permissions,
     )
     db.add(db_user)
     db.commit()

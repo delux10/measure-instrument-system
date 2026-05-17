@@ -8,7 +8,7 @@ from app.schemas import (
     SupervisionExecutionCreate, SupervisionExecutionUpdate, SupervisionExecutionResponse,
     SupervisionCheckItemCreate, SupervisionCheckItemUpdate, SupervisionCheckItemResponse
 )
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -29,6 +29,7 @@ def list_executions(
         query = query.filter(SupervisionExecution.status == status)
     if executor_id:
         query = query.filter(SupervisionExecution.executor_id == executor_id)
+    query = apply_department_filter(query, SupervisionExecution, current_user)
     return query.all()
 
 @router.get("/{exec_id}", response_model=SupervisionExecutionResponse)

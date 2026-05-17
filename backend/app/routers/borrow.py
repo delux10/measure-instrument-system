@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.borrow import BorrowRecord, BorrowStatus
 from app.models.user import User
 from app.schemas import BorrowCreate, BorrowUpdate, BorrowResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -21,6 +21,7 @@ def list_borrows(
         query = query.filter(BorrowRecord.status == status)
     if instrument_id:
         query = query.filter(BorrowRecord.instrument_id == instrument_id)
+    query = apply_department_filter(query, BorrowRecord, current_user)
     return query.all()
 
 @router.get("/{borrow_id}", response_model=BorrowResponse)

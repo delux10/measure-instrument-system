@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models.calibration import CalibrationRecord
 from app.models.user import User
 from app.schemas import CalibrationRecordCreate, CalibrationRecordUpdate, CalibrationRecordResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -31,6 +31,7 @@ def list_records(
         query = query.filter(CalibrationRecord.actual_date >= start_date)
     if end_date:
         query = query.filter(CalibrationRecord.actual_date <= end_date)
+    query = apply_department_filter(query, CalibrationRecord, current_user)
     return query.all()
 
 @router.get("/{record_id}", response_model=CalibrationRecordResponse)

@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.supervision import SupervisionPlan
 from app.models.user import User
 from app.schemas import SupervisionPlanCreate, SupervisionPlanUpdate, SupervisionPlanResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -24,6 +24,7 @@ def list_plans(
         query = query.filter(SupervisionPlan.type == type)
     if department_id:
         query = query.filter(SupervisionPlan.department_id == department_id)
+    query = apply_department_filter(query, SupervisionPlan, current_user)
     return query.all()
 
 @router.get("/{plan_id}", response_model=SupervisionPlanResponse)

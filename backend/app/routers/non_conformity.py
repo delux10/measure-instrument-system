@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.supervision import NonConformity
 from app.models.user import User
 from app.schemas import NonConformityCreate, NonConformityUpdate, NonConformityResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -27,6 +27,7 @@ def list_non_conformities(
         query = query.filter(NonConformity.department_id == department_id)
     if supervision_execution_id:
         query = query.filter(NonConformity.supervision_execution_id == supervision_execution_id)
+    query = apply_department_filter(query, NonConformity, current_user)
     return query.all()
 
 @router.get("/{ncr_id}", response_model=NonConformityResponse)

@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.calibration import Certificate
 from app.models.user import User
 from app.schemas import CertificateCreate, CertificateResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 from app.config import settings
 
 router = APIRouter()
@@ -24,6 +24,7 @@ def list_certificates(
     query = db.query(Certificate)
     if calibration_record_id:
         query = query.filter(Certificate.calibration_record_id == calibration_record_id)
+    query = apply_department_filter(query, Certificate, current_user)
     return query.all()
 
 @router.get("/{cert_id}", response_model=CertificateResponse)

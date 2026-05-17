@@ -22,7 +22,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=400, detail="账号已停用")
     
     access_token = create_access_token(
-        data={"user_id": user.id, "username": user.username, "role": user.role},
+        data={
+            "user_id": user.id,
+            "username": user.username,
+            "role": user.role,
+            "module_permissions": user.module_permissions,
+        },
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {
@@ -33,7 +38,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             "username": user.username,
             "name": user.name,
             "role": user.role,
-            "department_id": user.department_id
+            "department_id": user.department_id,
+            "module_permissions": user.module_permissions,
         }
     }
 

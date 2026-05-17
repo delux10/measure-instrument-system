@@ -8,78 +8,15 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import date, datetime
 from datetime import timedelta
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Dict
 from io import BytesIO
 import openpyxl
 
 
-MES_COLUMN_MAP = {
-    "仪器编号": "code",
-    "管理编号": "code",
-    "资产编号": "code",
-    "仪器名称": "name",
-    "设备名称": "name",
-    "名称": "name",
-    "型号规格": "model",
-    "型号": "model",
-    "规格": "model",
-    "出厂编号": "serial_no",
-    "序列号": "serial_no",
-    "出厂编号/序列号": "serial_no",
-    "测量范围": "range_value",
-    "量程": "range_value",
-    "测量范围/量程": "range_value",
-    "精度等级": "accuracy",
-    "精度": "accuracy",
-    "不确定度": "accuracy",
-    "精度等级/不确定度": "accuracy",
-    "分度值": "scale_interval",
-    "出厂日期": "manufacture_date",
-    "生产厂家": "manufacturer",
-    "厂家": "manufacturer",
-    "制造厂家": "manufacturer",
-    "制造商": "manufacturer",
-    "责任人": "keeper",
-    "保管人": "keeper",
-    "保管员": "keeper",
-    "负责人": "keeper",
-    "检定/校准单位": "cal_agency",
-    "检定单位": "cal_agency",
-    "校准单位": "cal_agency",
-    "检定机构": "cal_agency",
-    "证书编号": "certificate_no",
-    "检定日期": "last_cal_date",
-    "检定时间": "last_cal_date",
-    "上次检定日期": "last_cal_date",
-    "有效期": "next_cal_date",
-    "有效期至": "next_cal_date",
-    "下次检定日期": "next_cal_date",
-    "证书确认": "cert_confirmed",
-    "计量特性": "metrology_characteristic",
-    "计量特性/技术指标": "metrology_characteristic",
-    "状态": "status",
-    "仪器状态": "status",
-    "使用状态": "status",
-    "使用部门": "department_name",
-    "部门": "department_name",
-    "所属部门": "department_name",
-    "管理部门": "department_name",
-    "安装地点": "location",
-    "存放地点": "location",
-    "使用地点": "location",
-    "存放位置": "location",
-    "备注": "remark",
-    "检定周期": "calibration_cycle",
-    "检定周期(月)": "calibration_cycle",
-    "周期": "calibration_cycle",
-    "仪器分类": "category_name",
-    "分类": "category_name",
-    "资产原值": "price",
-    "原值": "price",
-    "购入日期": "purchase_date",
-    "检定方式": "cal_method",
-    "送检方式": "cal_method",
-}
+# Maps Excel header names → fixed Instrument column keys.
+# Only columns that have dedicated DB columns (code, name, FK lookups, calibration dates).
+FIXED_COLUMN_NAMES = {"code", "name", "department_name", "category_name",
+                       "last_cal_date", "next_cal_date", "calibration_cycle"}
 
 STATUS_MAP = {
     "在用": "in_use",
@@ -89,6 +26,33 @@ STATUS_MAP = {
     "送检": "calibrating",
     "维修": "repair",
 }
+
+# Recognized header aliases for the few fixed columns we extract
+HEADER_ALIASES = {
+    "code": ["仪器编号", "管理编号", "资产编号"],
+    "name": ["仪器名称", "计量设备名称", "设备名称", "名称"],
+    "department_name": ["使用部门", "部门", "所属部门", "管理部门"],
+    "category_name": ["仪器分类", "分类"],
+    "last_cal_date": ["检定日期", "检定时间", "上次检定日期", "确认日期"],
+    "next_cal_date": ["有效期", "有效期至", "下次检定日期", "有效日期", "下次检验日期"],
+    "calibration_cycle": ["检定周期", "检定周期(月)", "周期", "确认间隔"],
+}
+
+
+def _build_header_map(headers: list) -> Dict[str, str]:
+    """Build a reverse map: header text -> fixed field name (or None for extra_data)."""
+    result = {}
+    for h in headers:
+        h = str(h).strip() if h else ""
+        if not h:
+            continue
+        matched = None
+        for field_name, aliases in HEADER_ALIASES.items():
+            if h in aliases:
+                matched = field_name
+                break
+        result[h] = matched  # None means this header goes to extra_data
+    return result
 
 
 def _parse_date(val: str) -> Optional[date]:
@@ -113,15 +77,14 @@ def validate_row(
     existing_codes: set,
     cat_by_name: dict,
     cat_by_path: dict,
-    departments: dict,
 ) -> List[ImportRowError]:
-    """Pure validation — no DB access. Returns empty list if row is valid."""
+    """Validate only the essential fixed fields. Everything else is free-form."""
     errors = []
 
     code = values.get("code", "")
     if not code:
         errors.append(ImportRowError(row=0, field="仪器编号", message="缺少 仪器编号（管理编号）"))
-        return errors  # can't proceed without code
+        return errors
 
     if code in existing_codes:
         errors.append(ImportRowError(row=0, field="仪器编号", message=f"仪器编号「{code}」已存在"))
@@ -130,125 +93,60 @@ def validate_row(
     if not name:
         errors.append(ImportRowError(row=0, field="仪器名称", message="缺少 仪器名称"))
 
-    model = values.get("model", "")
-    if not model:
-        errors.append(ImportRowError(row=0, field="型号规格", message="缺少 型号规格"))
-
     cat_name = values.get("category_name", "")
     if not cat_name:
         errors.append(ImportRowError(row=0, field="仪器分类", message="缺少 仪器分类"))
-    else:
-        cat_id = cat_by_name.get(cat_name)
-        if cat_id is None:
-            cat_id = cat_by_path.get(cat_name)
-        if cat_id is None:
-            errors.append(ImportRowError(row=0, field="仪器分类", message=f"分类「{cat_name}」不存在"))
-
-    # Date field validation (warn only — don't block)
-    for date_field in ("manufacture_date", "last_cal_date", "next_cal_date", "purchase_date"):
-        v = values.get(date_field)
-        if v and not isinstance(v, date):
-            parsed = _parse_date(str(v))
-            if parsed is None:
-                errors.append(ImportRowError(row=0, field=date_field, message=f"日期格式无法识别: {v}"))
-
-    # Price validation
-    price_raw = values.get("price")
-    if price_raw:
-        try:
-            float(str(price_raw).replace(",", "").replace("，", ""))
-        except ValueError:
-            errors.append(ImportRowError(row=0, field="price", message=f"价格格式无法识别: {price_raw}"))
-
-    # Department — soft fail (warn but don't block)
-    dept_name = values.get("department_name")
-    if dept_name and dept_name not in departments:
-        errors.append(ImportRowError(row=0, field="使用部门", message=f"部门「{dept_name}」不存在"))
 
     return errors
 
 
-def build_instrument_from_values(
+def _build_instrument(
     values: dict,
+    extra_data: dict,
     departments: dict,
     cat_by_name: dict,
     cat_by_path: dict,
 ) -> Instrument:
-    values = dict(values)  # copy to prevent mutation of caller's dict
-    dept_name = values.pop("department_name", None)
+    dept_name = values.get("department_name")
     dept_id = departments.get(dept_name) if dept_name else None
 
-    cat_name = values.pop("category_name", None)
+    cat_name = values.get("category_name")
     cat_id = None
     if cat_name:
-        cat_id = cat_by_name.get(cat_name)
-        if cat_id is None:
-            cat_id = cat_by_path.get(cat_name)
+        cat_id = cat_by_name.get(cat_name) or cat_by_path.get(cat_name)
 
-    status_raw = values.get("status", "")
-    if status_raw and status_raw in STATUS_MAP:
-        values["status"] = STATUS_MAP[status_raw]
+    status = values.get("status", "in_use")
+    if status in STATUS_MAP:
+        status = STATUS_MAP[status]
 
-    cycle_raw = values.get("calibration_cycle")
-    if cycle_raw:
-        cycle_str = str(cycle_raw).replace("个月", "").replace("月", "").strip()
+    cycle = values.get("calibration_cycle")
+    if cycle is not None:
         try:
-            values["calibration_cycle"] = int(float(cycle_str))
-        except ValueError:
-            values.pop("calibration_cycle", None)
+            cycle = int(float(str(cycle).replace("个月", "").replace("月", "").strip()))
+        except (ValueError, TypeError):
+            cycle = None
 
-    for date_field in ("manufacture_date", "last_cal_date", "next_cal_date", "purchase_date"):
-        v = values.get(date_field)
-        if v:
-            parsed = _parse_date(v) if not isinstance(v, date) else v
-            if parsed:
-                values[date_field] = parsed
-            else:
-                values.pop(date_field, None)
+    last_cal = values.get("last_cal_date")
+    if last_cal and not isinstance(last_cal, date):
+        last_cal = _parse_date(str(last_cal))
+    next_cal = values.get("next_cal_date")
+    if next_cal and not isinstance(next_cal, date):
+        next_cal = _parse_date(str(next_cal))
 
-    price_raw = values.get("price")
-    if price_raw:
-        try:
-            values["price"] = float(str(price_raw).replace(",", "").replace("，", ""))
-        except ValueError:
-            values.pop("price", None)
-
-    if not values.get("next_cal_date"):
-        last_cal = values.get("last_cal_date")
-        cycle = values.get("calibration_cycle")
-        if last_cal and isinstance(last_cal, date) and cycle:
-            total_months = last_cal.year * 12 + last_cal.month - 1 + cycle
-            next_year = total_months // 12
-            next_month = total_months % 12 + 1
-            next_day = min(last_cal.day, 28)
-            values["next_cal_date"] = date(next_year, next_month, next_day)
+    if not next_cal and last_cal and isinstance(last_cal, date) and cycle:
+        total_months = last_cal.year * 12 + last_cal.month - 1 + cycle
+        next_cal = date(total_months // 12, total_months % 12 + 1, min(last_cal.day, 28))
 
     return Instrument(
         code=values.get("code", ""),
         name=values.get("name", ""),
-        model=values.get("model"),
-        serial_no=values.get("serial_no"),
         category_id=cat_id,
-        range_value=values.get("range_value"),
-        accuracy=values.get("accuracy"),
-        scale_interval=values.get("scale_interval"),
-        manufacture_date=values.get("manufacture_date"),
-        manufacturer=values.get("manufacturer"),
-        purchase_date=values.get("purchase_date"),
-        price=values.get("price"),
-        keeper=values.get("keeper"),
         department_id=dept_id,
-        location=values.get("location"),
-        cal_agency=values.get("cal_agency"),
-        certificate_no=values.get("certificate_no"),
-        cert_confirmed=values.get("cert_confirmed"),
-        metrology_characteristic=values.get("metrology_characteristic"),
-        status=values.get("status", "in_use"),
-        calibration_cycle=values.get("calibration_cycle"),
-        last_cal_date=values.get("last_cal_date"),
-        next_cal_date=values.get("next_cal_date"),
-        cal_method=values.get("cal_method"),
-        remark=values.get("remark"),
+        status=status,
+        calibration_cycle=cycle,
+        last_cal_date=last_cal,
+        next_cal_date=next_cal,
+        extra_data=extra_data,
     )
 
 
@@ -307,6 +205,15 @@ class InstrumentService(BaseCRUDService):
         if not filename.lower().endswith(('.xlsx', '.xls')):
             raise HTTPException(status_code=400, detail="仅支持 .xlsx / .xls 格式")
 
+        magic = file_content[:4]
+        if magic[:2] == b'\xd0\xcf':
+            raise HTTPException(
+                status_code=400,
+                detail="不支持旧版 .xls 格式，请在 Excel 中另存为「Excel 工作簿 (.xlsx)」格式后重新上传"
+            )
+        if magic != b'PK\x03\x04':
+            raise HTTPException(status_code=400, detail="文件格式不正确，请上传有效的 .xlsx 文件")
+
         try:
             wb = openpyxl.load_workbook(BytesIO(file_content))
         except Exception as e:
@@ -317,18 +224,8 @@ class InstrumentService(BaseCRUDService):
         if len(rows) < 2:
             raise HTTPException(status_code=400, detail="文件为空或仅包含表头")
 
-        # Parse header -> column map
         headers = [str(h).strip() if h is not None else "" for h in rows[0]]
-        col_map: Dict[int, str] = {}
-        for idx, h in enumerate(headers):
-            if h and h in MES_COLUMN_MAP:
-                col_map[idx] = MES_COLUMN_MAP[h]
-
-        if not col_map:
-            raise HTTPException(
-                status_code=400,
-                detail=f"未识别到任何有效列名。表头: {', '.join(headers[:15])}..."
-            )
+        header_map = _build_header_map(headers)
 
         # Preload lookups
         from app.models.department import Department
@@ -349,58 +246,100 @@ class InstrumentService(BaseCRUDService):
 
         existing_codes: set = {c for (c,) in db.query(Instrument.code).all()}
 
-        # Pass 1: parse and validate all rows
+        # Pass 1: parse and validate
         valid_rows: list = []
         all_errors: list = []
         data_rows = 0
 
         for row_idx, row in enumerate(rows[1:], start=2):
             values = {}
-            for col_idx, field_name in col_map.items():
+            extra = {}
+            has_any = False
+            for col_idx, header_text in enumerate(headers):
+                if not header_text:
+                    continue
                 val = row[col_idx] if col_idx < len(row) else None
-                if val is not None:
-                    val_str = str(val).strip()
-                    if not val_str or val_str in ("None", "/", "-"):
+                if val is None:
+                    continue
+                # Convert to a clean value (string, number, or date)
+                if isinstance(val, datetime):
+                    val = val.date()
+                elif isinstance(val, str):
+                    val = val.strip()
+                    if not val or val in ("None", "/", "-"):
                         continue
-                    values[field_name] = val_str
+                has_any = True
 
-            if not values:
+                fixed_field = header_map.get(header_text)
+                if fixed_field:
+                    values[fixed_field] = val
+                else:
+                    extra[header_text] = val
+
+            if not has_any:
                 continue
 
             data_rows += 1
-            row_errors = validate_row(values, existing_codes, cat_by_name, cat_by_path, departments)
+            row_errors = validate_row(values, existing_codes, cat_by_name, cat_by_path)
             if row_errors:
                 for err in row_errors:
                     err.row = row_idx
                 all_errors.extend(row_errors)
             else:
-                valid_rows.append((row_idx, values))
+                valid_rows.append((row_idx, values, extra))
 
         failure_count = len(all_errors)
 
-        # Pass 2: batch-insert valid rows
+        def ensure_department(dept_name: str):
+            if dept_name in departments:
+                return departments[dept_name]
+            dept = Department(name=dept_name, level=1)
+            db.add(dept)
+            db.flush()
+            departments[dept_name] = dept.id
+            return dept.id
+
+        def ensure_category(cat_name: str):
+            if cat_name in cat_by_name:
+                return cat_by_name[cat_name]
+            if cat_name in cat_by_path:
+                return cat_by_path[cat_name]
+            cat = InstrumentCategory(name=cat_name, level=1)
+            db.add(cat)
+            db.flush()
+            cat_by_name[cat_name] = cat.id
+            return cat.id
+
+        # Pass 2: batch-insert
         BATCH_SIZE = 100
         success_count = 0
 
         for batch_start in range(0, len(valid_rows), BATCH_SIZE):
             batch = valid_rows[batch_start:batch_start + BATCH_SIZE]
             try:
-                for row_idx, values in batch:
-                    inst = build_instrument_from_values(
-                        values, departments, cat_by_name, cat_by_path
-                    )
+                for row_idx, values, extra in batch:
+                    dept_name = values.get("department_name")
+                    if dept_name:
+                        ensure_department(dept_name)
+                    cat_name = values.get("category_name")
+                    if cat_name:
+                        ensure_category(cat_name)
+                    inst = _build_instrument(values, extra, departments, cat_by_name, cat_by_path)
                     db.add(inst)
                     existing_codes.add(inst.code)
                 db.commit()
                 success_count += len(batch)
             except Exception:
                 db.rollback()
-                # Fall back to row-by-row for this batch to isolate the failing row
-                for row_idx, values in batch:
+                for row_idx, values, extra in batch:
                     try:
-                        inst = build_instrument_from_values(
-                            values, departments, cat_by_name, cat_by_path
-                        )
+                        dept_name = values.get("department_name")
+                        if dept_name:
+                            ensure_department(dept_name)
+                        cat_name = values.get("category_name")
+                        if cat_name:
+                            ensure_category(cat_name)
+                        inst = _build_instrument(values, extra, departments, cat_by_name, cat_by_path)
                         db.add(inst)
                         db.commit()
                         existing_codes.add(inst.code)

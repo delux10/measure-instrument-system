@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import String
 from typing import List, Optional
 from datetime import date
 from app.database import get_db
 from app.models.instrument import Instrument, InstrumentStatus
 from app.models.user import User
 from app.schemas import InstrumentCreate, InstrumentUpdate, InstrumentResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -26,8 +27,11 @@ def list_instruments(
     if keyword:
         like = f"%{keyword}%"
         query = query.filter(
-            Instrument.name.ilike(like) | Instrument.code.ilike(like) | Instrument.model.ilike(like)
+            Instrument.name.ilike(like) |
+            Instrument.code.ilike(like) |
+            Instrument.extra_data.cast(String).ilike(like)
         )
+    query = apply_department_filter(query, Instrument, current_user)
     return query.all()
 
 @router.get("/expiring", response_model=List[InstrumentResponse])
@@ -38,11 +42,13 @@ def list_expiring_instruments(
 ):
     from datetime import datetime, timedelta
     end_date = date.today() + timedelta(days=days)
-    return db.query(Instrument).filter(
+    query = db.query(Instrument).filter(
         Instrument.next_cal_date.isnot(None),
         Instrument.next_cal_date <= end_date,
         Instrument.status != InstrumentStatus.SCRAPPED
-    ).all()
+    )
+    query = apply_department_filter(query, Instrument, current_user)
+    return query.all()
 
 @router.get("/{instrument_id}", response_model=InstrumentResponse)
 def get_instrument(instrument_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -60,7 +66,19 @@ def create_instrument(
     existing = db.query(Instrument).filter(Instrument.code == inst.code).first()
     if existing:
         raise HTTPException(status_code=400, detail="仪器编号已存在")
-    db_inst = Instrument(**inst.model_dump())
+    from app.models.instrument import InstrumentCategory
+    from app.services.instrument_service import InstrumentService
+    data = inst.model_dump()
+    cat_name = data.pop("category_name", None)
+    if cat_name and not data.get("category_id"):
+        cat = db.query(InstrumentCategory).filter(InstrumentCategory.name == cat_name).first()
+        if not cat:
+            cat = InstrumentCategory(name=cat_name, level=1)
+            db.add(cat)
+            db.flush()
+        data["category_id"] = cat.id
+    data.pop("category_name", None)
+    db_inst = Instrument(**data)
     db.add(db_inst)
     db.commit()
     db.refresh(db_inst)
@@ -76,7 +94,14 @@ def update_instrument(
     db_inst = db.query(Instrument).filter(Instrument.id == instrument_id).first()
     if not db_inst:
         raise HTTPException(status_code=404, detail="仪器不存在")
-    for key, value in inst.model_dump(exclude_unset=True).items():
+    update_data = inst.model_dump(exclude_unset=True)
+    # Merge extra_data instead of replacing
+    if "extra_data" in update_data and update_data["extra_data"] is not None:
+        existing = db_inst.extra_data or {}
+        existing.update(update_data["extra_data"])
+        db_inst.extra_data = existing
+        del update_data["extra_data"]
+    for key, value in update_data.items():
         setattr(db_inst, key, value)
     db.commit()
     db.refresh(db_inst)

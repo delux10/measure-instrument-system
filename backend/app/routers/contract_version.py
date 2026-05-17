@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.contract import ContractVersion
 from app.models.user import User
 from app.schemas import ContractVersionCreate, ContractVersionResponse
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 from app.config import settings
 
 router = APIRouter()
@@ -23,6 +23,7 @@ def list_versions(
     query = db.query(ContractVersion)
     if contract_id:
         query = query.filter(ContractVersion.contract_id == contract_id).order_by(ContractVersion.version_no.desc())
+    query = apply_department_filter(query, ContractVersion, current_user)
     return query.all()
 
 @router.get("/{version_id}", response_model=ContractVersionResponse)

@@ -10,6 +10,15 @@ export const useUserStore = defineStore('user', () => {
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
   const userName = computed(() => userInfo.value?.name || '')
+  const modulePermissions = computed(() => userInfo.value?.module_permissions ?? null)
+  const isAdmin = computed(() => userInfo.value?.role === 'admin')
+
+  function canAccessModule(moduleName) {
+    if (!isLoggedIn.value) return false
+    const perms = modulePermissions.value
+    if (perms === null || perms === undefined) return true
+    return Array.isArray(perms) && perms.includes(moduleName)
+  }
 
   // 操作
   function setToken(newToken) {
@@ -48,6 +57,9 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     isLoggedIn,
     userName,
+    modulePermissions,
+    isAdmin,
+    canAccessModule,
     login,
     logout,
     setToken,

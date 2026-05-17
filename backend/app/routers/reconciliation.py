@@ -7,7 +7,7 @@ from app.models.execution import ExecutionRecord
 from app.models.reconciliation import ReconciliationDiff, DiffType, DiffStatus
 from app.models.user import User
 from app.schemas import ReconciliationDiffResponse, ReconciliationDiffUpdate
-from app.utils.auth import get_current_user, require_role
+from app.utils.auth import get_current_user, require_role, apply_department_filter
 
 router = APIRouter()
 
@@ -26,6 +26,7 @@ def list_diffs(
         query = query.filter(ReconciliationDiff.status == status)
     if diff_type:
         query = query.filter(ReconciliationDiff.diff_type == diff_type)
+    query = apply_department_filter(query, ReconciliationDiff, current_user)
     return query.all()
 
 @router.post("/analyze/{contract_id}")

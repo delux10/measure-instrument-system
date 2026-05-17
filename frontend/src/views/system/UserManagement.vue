@@ -88,6 +88,17 @@
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" />
         </el-form-item>
+        <el-form-item label="功能模块">
+          <el-checkbox-group v-model="form.module_permissions">
+            <el-checkbox label="dashboard">仪表盘</el-checkbox>
+            <el-checkbox label="instruments">仪器台账</el-checkbox>
+            <el-checkbox label="calibration">检定计划</el-checkbox>
+            <el-checkbox label="contracts">合同管理</el-checkbox>
+            <el-checkbox label="supervision">监督管理</el-checkbox>
+            <el-checkbox label="user_management">用户管理</el-checkbox>
+          </el-checkbox-group>
+          <span style="font-size: 12px; color: #909399">留空表示拥有所有模块权限</span>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -121,6 +132,7 @@ const form = ref({
   department_id: null,
   phone: '',
   email: '',
+  module_permissions: null,
 })
 
 const rules = {
@@ -182,7 +194,7 @@ async function fetchDepartments() {
 function openCreateDialog() {
   isEdit.value = false
   editingId.value = null
-  form.value = { username: '', password: '', name: '', role: 'dept_measurer', department_id: null, phone: '', email: '' }
+  form.value = { username: '', password: '', name: '', role: 'dept_measurer', department_id: null, phone: '', email: '', module_permissions: null }
   dialogVisible.value = true
 }
 
@@ -196,6 +208,7 @@ function openEditDialog(row) {
     department_id: row.department_id,
     phone: row.phone || '',
     email: row.email || '',
+    module_permissions: row.module_permissions,
   }
   dialogVisible.value = true
 }

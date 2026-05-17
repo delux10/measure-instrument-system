@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '../store/user'
 
 const routes = [
   {
@@ -16,37 +17,37 @@ const routes = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('../views/Dashboard.vue'),
-        meta: { title: '仪表盘' },
+        meta: { title: '仪表盘', module: 'dashboard' },
       },
       {
         path: 'instruments',
         name: 'InstrumentList',
         component: () => import('../views/instruments/InstrumentList.vue'),
-        meta: { title: '仪器台账' },
+        meta: { title: '仪器台账', module: 'instruments' },
       },
       {
         path: 'calibration',
         name: 'CalibrationPlan',
         component: () => import('../views/calibration/CalibrationPlan.vue'),
-        meta: { title: '检定计划' },
+        meta: { title: '检定计划', module: 'calibration' },
       },
       {
         path: 'contract',
         name: 'ContractList',
         component: () => import('../views/contract/ContractList.vue'),
-        meta: { title: '合同管理' },
+        meta: { title: '合同管理', module: 'contracts' },
       },
       {
         path: 'supervision',
         name: 'SupervisionList',
         component: () => import('../views/supervision/SupervisionList.vue'),
-        meta: { title: '监督管理' },
+        meta: { title: '监督管理', module: 'supervision' },
       },
       {
         path: 'system/users',
         name: 'UserManagement',
         component: () => import('../views/system/UserManagement.vue'),
-        meta: { title: '用户管理' },
+        meta: { title: '用户管理', module: 'user_management' },
       },
     ],
   },
@@ -57,14 +58,22 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：未登录跳转到登录页
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   if (to.path !== '/login' && !token) {
     next('/login')
-  } else {
-    next()
+    return
   }
+
+  if (to.meta.module) {
+    const userStore = useUserStore()
+    if (userStore.userInfo && !userStore.canAccessModule(to.meta.module)) {
+      next('/dashboard')
+      return
+    }
+  }
+
+  next()
 })
 
 export default router

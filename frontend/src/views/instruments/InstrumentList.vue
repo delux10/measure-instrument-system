@@ -93,17 +93,18 @@
         style="width: 100%"
         empty-text="暂无仪器数据"
       >
-        <el-table-column prop="code" label="仪器编号" width="120" />
+        <el-table-column prop="code" label="仪器编号" width="120" fixed />
         <el-table-column prop="name" label="仪器名称" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="model" label="型号规格" width="130" show-overflow-tooltip />
-        <el-table-column prop="serial_no" label="出厂编号" width="130" show-overflow-tooltip />
-        <el-table-column prop="range_value" label="测量范围" width="120" show-overflow-tooltip />
-        <el-table-column prop="accuracy" label="精度等级" width="110" show-overflow-tooltip />
-        <el-table-column prop="scale_interval" label="分度值" width="90" />
-        <el-table-column prop="manufacturer" label="生产厂家" width="140" show-overflow-tooltip />
-        <el-table-column prop="keeper" label="责任人" width="100" />
-        <el-table-column prop="cal_agency" label="检定/校准单位" width="140" show-overflow-tooltip />
-        <el-table-column prop="certificate_no" label="证书编号" width="130" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)" size="small" effect="plain">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="使用部门" width="120">
+          <template #default="{ row }">{{ deptName(row.department_id) }}</template>
+        </el-table-column>
         <el-table-column prop="last_cal_date" label="检定日期" width="110">
           <template #default="{ row }">{{ formatDate(row.last_cal_date) }}</template>
         </el-table-column>
@@ -114,21 +115,17 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="cert_confirmed" label="证书确认" width="100" />
-        <el-table-column prop="metrology_characteristic" label="计量特性" width="120" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="80" align="center">
+        <el-table-column
+          v-for="col in dynamicColumns"
+          :key="col.key"
+          :label="col.key"
+          :min-width="130"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small" effect="plain">
-              {{ statusLabel(row.status) }}
-            </el-tag>
+            {{ formatCell(row.extra_data?.[col.key]) }}
           </template>
         </el-table-column>
-        <el-table-column prop="department_id" label="使用部门" width="120">
-          <template #default="{ row }">
-            {{ deptName(row.department_id) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="location" label="安装地点" width="130" show-overflow-tooltip />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="openEditDialog(row)">编辑</el-button>
@@ -178,153 +175,18 @@
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="仪器分类" prop="category_id">
-              <el-select
-                v-model="form.category_id"
-                placeholder="请选择分类"
-                style="width: 100%"
-                filterable
-                clearable
-              >
-                <el-option
-                  v-for="cat in flattenedCategories"
-                  :key="cat.id"
-                  :label="cat.label"
-                  :value="cat.id"
-                />
+            <el-form-item label="仪器分类">
+              <el-input v-model="form.category_name" placeholder="请输入仪器分类" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="8">
+            <el-form-item label="使用部门">
+              <el-select v-model="form.department_id" placeholder="请选择部门" style="width: 100%" clearable>
+                <el-option v-for="dept in departments" :key="dept.id" :label="dept.name" :value="dept.id" />
               </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="型号规格" prop="model">
-              <el-input v-model="form.model" placeholder="请输入型号规格" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="出厂编号" prop="serial_no">
-              <el-input v-model="form.serial_no" placeholder="请输入出厂编号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="出厂日期">
-              <el-date-picker
-                v-model="form.manufacture_date"
-                type="date"
-                placeholder="选择日期"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="测量范围">
-              <el-input v-model="form.range_value" placeholder="如：0-150mm" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="精度等级/不确定度">
-              <el-input v-model="form.accuracy" placeholder="如：0.01mm" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="分度值">
-              <el-input v-model="form.scale_interval" placeholder="如：0.01mm" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="生产厂家">
-              <el-input v-model="form.manufacturer" placeholder="请输入生产厂家" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="购入日期">
-              <el-date-picker
-                v-model="form.purchase_date"
-                type="date"
-                placeholder="选择日期"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="资产原值">
-              <el-input-number
-                v-model="form.price"
-                :min="0"
-                :precision="2"
-                style="width: 100%"
-                placeholder="请输入资产原值"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="责任人">
-              <el-input v-model="form.keeper" placeholder="请输入责任人" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="使用部门" prop="department_id">
-              <el-select
-                v-model="form.department_id"
-                placeholder="请选择部门"
-                style="width: 100%"
-                clearable
-              >
-                <el-option
-                  v-for="dept in departments"
-                  :key="dept.id"
-                  :label="dept.name"
-                  :value="dept.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="安装地点">
-              <el-input v-model="form.location" placeholder="请输入安装地点" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="检定/校准单位">
-              <el-input v-model="form.cal_agency" placeholder="如：XX省计量科学研究院" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="证书编号">
-              <el-input v-model="form.certificate_no" placeholder="请输入证书编号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="证书确认">
-              <el-select v-model="form.cert_confirmed" placeholder="请选择" style="width: 100%" clearable>
-                <el-option label="已确认" value="confirmed" />
-                <el-option label="未确认" value="unconfirmed" />
-                <el-option label="待确认" value="pending" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="8">
-            <el-form-item label="计量特性">
-              <el-input v-model="form.metrology_characteristic" placeholder="请输入计量特性" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -341,59 +203,38 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="检定周期(月)">
-              <el-input-number
-                v-model="form.calibration_cycle"
-                :min="0"
-                :max="120"
-                style="width: 100%"
-                placeholder="月数"
-              />
+              <el-input-number v-model="form.calibration_cycle" :min="0" :max="120" style="width: 100%" placeholder="月数" />
             </el-form-item>
           </el-col>
         </el-row>
-
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="检定日期">
-              <el-date-picker
-                v-model="form.last_cal_date"
-                type="date"
-                placeholder="选择日期"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
+              <el-date-picker v-model="form.last_cal_date" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="有效期至">
-              <el-date-picker
-                v-model="form.next_cal_date"
-                type="date"
-                placeholder="选择日期"
-                style="width: 100%"
-                value-format="YYYY-MM-DD"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="检定方式">
-              <el-select v-model="form.cal_method" placeholder="请选择" style="width: 100%" clearable>
-                <el-option label="送检" value="external" />
-                <el-option label="现场" value="onsite" />
-                <el-option label="自检" value="self" />
-              </el-select>
+              <el-date-picker v-model="form.next_cal_date" type="date" placeholder="选择日期" style="width: 100%" value-format="YYYY-MM-DD" />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <el-form-item label="备注">
-          <el-input
-            v-model="form.remark"
-            type="textarea"
-            :rows="2"
-            placeholder="请输入备注信息"
-          />
-        </el-form-item>
+        <el-divider>扩展字段</el-divider>
+        <div v-for="(_, key, idx) in form.extra_data" :key="idx" style="margin-bottom: 8px">
+          <el-row :gutter="8">
+            <el-col :span="8">
+              <el-input v-model="extraDataKeys[idx]" placeholder="字段名" />
+            </el-col>
+            <el-col :span="14">
+              <el-input v-model="form.extra_data[key]" placeholder="字段值" />
+            </el-col>
+            <el-col :span="2">
+              <el-button @click="removeExtraField(key)" icon="Delete" circle size="small" />
+            </el-col>
+          </el-row>
+        </div>
+        <el-button @click="addExtraField" size="small" type="primary" plain>+ 添加字段</el-button>
       </el-form>
 
       <template #footer>
@@ -405,13 +246,10 @@
     <!-- 导入 Excel 对话框 -->
     <el-dialog v-model="importDialogVisible" title="导入 Excel 台账" width="700px">
       <div style="margin-bottom: 16px; padding: 12px; background: #f5f7fa; border-radius: 4px">
-        <p style="margin: 0 0 8px 0; font-weight: 600">支持的列名及必填字段：</p>
+        <p style="margin: 0 0 8px 0; font-weight: 600">导入说明：</p>
         <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.8">
-          <span style="color: #f56c6c">*必填：仪器编号、仪器名称、型号规格、仪器分类</span><br/>
-          可选：出厂编号、测量范围、精度等级/不确定度、分度值、出厂日期、
-          生产厂家/厂家、责任人/保管人、检定/校准单位、证书编号、检定日期、
-          有效期至、证书确认、计量特性、状态、使用部门/部门、
-          安装地点/存放地点、备注、检定周期、资产原值、购入日期、检定方式
+          <span style="color: #f56c6c">*必填列：仪器编号、仪器名称、仪器分类</span><br/>
+          其他所有列自动识别并保存为扩展字段。表头名称即字段名。
         </p>
       </div>
 
@@ -545,29 +383,13 @@ function initForm() {
   return {
     code: '',
     name: '',
-    model: '',
-    serial_no: '',
-    category_id: null,
-    range_value: '',
-    accuracy: '',
-    scale_interval: '',
-    manufacture_date: null,
-    manufacturer: '',
-    purchase_date: null,
-    price: null,
-    keeper: '',
+    category_name: '',
     department_id: null,
-    location: '',
-    cal_agency: '',
-    certificate_no: '',
-    cert_confirmed: '',
-    metrology_characteristic: '',
     status: 'in_use',
     calibration_cycle: null,
     last_cal_date: null,
     next_cal_date: null,
-    cal_method: '',
-    remark: '',
+    extra_data: {},
   }
 }
 const form = ref(initForm())
@@ -577,7 +399,6 @@ const rules = {
   code: [{ required: true, message: '请输入仪器编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入仪器名称', trigger: 'blur' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }],
-  department_id: [{ required: true, message: '请选择使用部门', trigger: 'change' }],
 }
 
 // === 计算属性：前端过滤与分页 ===
@@ -646,6 +467,42 @@ function deptName(id) {
 function formatDate(d) {
   if (!d) return '-'
   return d
+}
+
+// === 动态列 ===
+const dynamicColumns = computed(() => {
+  const keys = new Set()
+  instrumentList.value.forEach((inst) => {
+    if (inst.extra_data && typeof inst.extra_data === 'object') {
+      Object.keys(inst.extra_data).forEach((k) => keys.add(k))
+    }
+  })
+  return Array.from(keys).map((key) => ({ key }))
+})
+
+function formatCell(val) {
+  if (val === null || val === undefined) return '-'
+  return String(val)
+}
+
+// === 扩展字段编辑 ===
+const extraDataKeys = ref([])
+
+function syncExtraKeys() {
+  extraDataKeys.value = Object.keys(form.value.extra_data || {})
+}
+
+function addExtraField() {
+  const newKey = '新字段' + (Object.keys(form.value.extra_data || {}).length + 1)
+  form.value.extra_data = { ...form.value.extra_data, [newKey]: '' }
+  extraDataKeys.value = Object.keys(form.value.extra_data)
+}
+
+function removeExtraField(key) {
+  const updated = { ...form.value.extra_data }
+  delete updated[key]
+  form.value.extra_data = updated
+  extraDataKeys.value = Object.keys(updated)
 }
 
 // === 是否过期 ===
@@ -735,6 +592,7 @@ function openCreateDialog() {
   isEdit.value = false
   editingId.value = null
   form.value = initForm()
+  syncExtraKeys()
   dialogVisible.value = true
 }
 
@@ -744,30 +602,15 @@ function openEditDialog(row) {
   form.value = {
     code: row.code || '',
     name: row.name || '',
-    model: row.model || '',
-    serial_no: row.serial_no || '',
-    category_id: row.category_id || null,
-    range_value: row.range_value || '',
-    accuracy: row.accuracy || '',
-    scale_interval: row.scale_interval || '',
-    manufacture_date: row.manufacture_date || '',
-    manufacturer: row.manufacturer || '',
-    purchase_date: row.purchase_date || '',
-    price: row.price ?? null,
-    keeper: row.keeper || '',
+    category_name: row.category_name || '',
     department_id: row.department_id || null,
-    location: row.location || '',
-    cal_agency: row.cal_agency || '',
-    certificate_no: row.certificate_no || '',
-    cert_confirmed: row.cert_confirmed || '',
-    metrology_characteristic: row.metrology_characteristic || '',
     status: row.status || 'in_use',
     calibration_cycle: row.calibration_cycle ?? null,
     last_cal_date: row.last_cal_date || '',
     next_cal_date: row.next_cal_date || '',
-    cal_method: row.cal_method || '',
-    remark: row.remark || '',
+    extra_data: row.extra_data ? { ...row.extra_data } : {},
   }
+  syncExtraKeys()
   dialogVisible.value = true
 }
 
