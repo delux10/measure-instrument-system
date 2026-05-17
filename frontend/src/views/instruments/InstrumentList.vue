@@ -405,12 +405,13 @@
     <!-- 导入 Excel 对话框 -->
     <el-dialog v-model="importDialogVisible" title="导入 Excel 台账" width="700px">
       <div style="margin-bottom: 16px; padding: 12px; background: #f5f7fa; border-radius: 4px">
-        <p style="margin: 0 0 8px 0; font-weight: 600">支持识别的表头列名：</p>
+        <p style="margin: 0 0 8px 0; font-weight: 600">支持的列名及必填字段：</p>
         <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.8">
-          仪器编号、仪器名称、型号规格/型号、出厂编号、测量范围、精度等级/不确定度、
-          分度值、出厂日期、生产厂家/厂家、责任人/保管人、检定/校准单位、证书编号、
-          检定日期、有效期/有效期至、证书确认、计量特性、状态、使用部门/部门、
-          安装地点/存放地点、备注、检定周期
+          <span style="color: #f56c6c">*必填：仪器编号、仪器名称、型号规格、仪器分类</span><br/>
+          可选：出厂编号、测量范围、精度等级/不确定度、分度值、出厂日期、
+          生产厂家/厂家、责任人/保管人、检定/校准单位、证书编号、检定日期、
+          有效期至、证书确认、计量特性、状态、使用部门/部门、
+          安装地点/存放地点、备注、检定周期、资产原值、购入日期、检定方式
         </p>
       </div>
 
@@ -436,23 +437,51 @@
       </el-upload>
 
       <!-- 导入结果 -->
-      <div v-if="importResult" style="padding: 16px; background: #f0f9eb; border-radius: 4px">
-        <p style="margin: 0 0 8px 0; font-weight: 600; color: #67c23a">
-          {{ importResult.message }}
-        </p>
-        <div v-if="importResult.errors && importResult.errors.length > 0" style="margin-top: 8px">
-          <p style="margin: 0 0 4px 0; color: #e6a23c; font-size: 13px">
-            跳过 {{ importResult.errors.length }} 条：
-          </p>
-          <div style="max-height: 200px; overflow-y: auto; font-size: 12px">
-            <div
-              v-for="(err, i) in importResult.errors"
-              :key="i"
-              style="padding: 2px 0; color: #909399"
-            >
-              第 {{ err.row }} 行：{{ err.msg }}
+      <div v-if="importResult" class="import-result">
+        <el-row :gutter="16" style="margin-bottom: 16px">
+          <el-col :span="8">
+            <div style="text-align: center; padding: 12px; background: #f5f7fa; border-radius: 4px">
+              <div style="font-size: 24px; font-weight: 600; color: #303133">{{ importResult.total_rows }}</div>
+              <div style="font-size: 12px; color: #909399">总计</div>
             </div>
+          </el-col>
+          <el-col :span="8">
+            <div style="text-align: center; padding: 12px; background: #f0f9eb; border-radius: 4px">
+              <div style="font-size: 24px; font-weight: 600; color: #67c23a">{{ importResult.success_count }}</div>
+              <div style="font-size: 12px; color: #67c23a">成功</div>
+            </div>
+          </el-col>
+          <el-col :span="8">
+            <div style="text-align: center; padding: 12px; background: #fef0f0; border-radius: 4px">
+              <div style="font-size: 24px; font-weight: 600; color: #f56c6c">{{ importResult.failure_count }}</div>
+              <div style="font-size: 12px; color: #f56c6c">失败</div>
+            </div>
+          </el-col>
+        </el-row>
+
+        <div v-if="importResult.errors && importResult.errors.length > 0">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+            <el-alert
+              :title="`共 ${importResult.errors.length} 条错误`"
+              type="warning"
+              :closable="false"
+              show-icon
+              style="flex: 1"
+            />
+            <el-button type="primary" link size="small" style="margin-left: 8px" @click="downloadErrorReport">
+              下载错误报告
+            </el-button>
           </div>
+          <el-table
+            :data="importResult.errors"
+            border
+            size="small"
+            max-height="250"
+          >
+            <el-table-column prop="row" label="行号" width="70" />
+            <el-table-column prop="field" label="字段" width="130" show-overflow-tooltip />
+            <el-table-column prop="message" label="错误信息" show-overflow-tooltip />
+          </el-table>
         </div>
       </div>
 
@@ -809,13 +838,38 @@ async function handleImport() {
   try {
     const res = await importInstruments(selectedFile.value)
     importResult.value = res.data
-    ElMessage.success(res.data.message || '导入完成')
+    const result = res.data
+    if (result.failure_count > 0) {
+      ElMessage.warning(result.message || '导入完成，部分数据存在错误')
+    } else {
+      ElMessage.success(result.message || '全部导入成功')
+    }
     await fetchInstruments()
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '导入失败')
   } finally {
     importing.value = false
   }
+}
+
+function downloadErrorReport() {
+  if (!importResult.value || !importResult.value.errors) return
+  const headers = ['行号', '字段', '错误信息']
+  const rows = importResult.value.errors.map(e => [
+    e.row || '',
+    e.field || '',
+    e.message || '',
+  ])
+  const csvContent = '﻿' + [headers, ...rows].map(r =>
+    r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  ).join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = '导入错误报告.csv'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 // === 生命周期 ===

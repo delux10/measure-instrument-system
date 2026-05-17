@@ -18,6 +18,7 @@ from app.routers.non_conformity import router as non_conformity_router
 from app.routers.workflow import router as workflow_router
 from app.routers.borrow import router as borrow_router
 from app.routers.repair import router as repair_router
+from app.routers.uploads import router as upload_router
 
 __all__ = [
     "auth_router", "department_router", "user_router",
@@ -27,5 +28,5 @@ __all__ = [
     "execution_record_router", "reconciliation_router",
     "supervision_template_router", "supervision_plan_router",
     "supervision_execution_router", "non_conformity_router",
-    "workflow_router", "borrow_router", "repair_router"
+    "workflow_router", "borrow_router", "repair_router", "upload_router"
 ]

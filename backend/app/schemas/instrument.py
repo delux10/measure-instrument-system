@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import date, datetime
 
 
@@ -103,3 +103,17 @@ class InstrumentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ImportRowError(BaseModel):
+    row: int
+    field: Optional[str] = None
+    message: str
+
+
+class ImportResultResponse(BaseModel):
+    total_rows: int
+    success_count: int
+    failure_count: int
+    errors: List[ImportRowError] = []
+    message: str = ""

@@ -3,24 +3,25 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from app.database import SessionLocal, engine, Base
+from app.database import SessionLocal
 from app.models.user import User
 from app.models.department import Department
 from app.models.instrument import InstrumentCategory
+from app.config import settings
 from app.utils.auth import get_password_hash
 
 
 def init_database():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
     try:
         # 1. Create admin user
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
+            admin_pwd = settings.ADMIN_PASSWORD or "admin123"
             admin = User(
                 username="admin",
-                password_hash=get_password_hash("admin123"),
+                password_hash=get_password_hash(admin_pwd),
                 name="系统管理员",
                 role="admin",
                 is_active=True
@@ -30,12 +31,13 @@ def init_database():
         else:
             print("管理员账号已存在")
 
-        # 2. Create dept head account
+        # 2. Create system_manager account
         boss = db.query(User).filter(User.username == "dage").first()
         if not boss:
+            boss_pwd = settings.SYSTEM_MANAGER_PASSWORD or "dage123"
             boss = User(
                 username="dage",
-                password_hash=get_password_hash("dage123"),
+                password_hash=get_password_hash(boss_pwd),
                 name="胡炯",
                 role="system_manager",
                 is_active=True

@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
 import hashlib
-import shutil
 from app.database import get_db
 from app.models.contract import ContractVersion
 from app.models.user import User
 from app.schemas import ContractVersionCreate, ContractVersionResponse
 from app.utils.auth import get_current_user, require_role
+from app.config import settings
 
 router = APIRouter()
 
@@ -43,12 +43,15 @@ async def upload_version(
     current_user: User = Depends(get_current_user)
 ):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
+    content = await file.read()
+    if len(content) > settings.MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail=f"文件大小超过限制 ({settings.MAX_UPLOAD_SIZE // (1024*1024)}MB)")
     file_ext = os.path.splitext(file.filename)[1] if file.filename else ""
     safe_name = f"contract_{contract_id}_v{version_no}_{hashlib.md5(file.filename.encode()).hexdigest()[:8]}{file_ext}"
     file_path = os.path.join(UPLOAD_DIR, safe_name)
-    
+
     with open(file_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(content)
     
     file_size = os.path.getsize(file_path)
     file_hash = hashlib.md5(open(file_path, "rb").read()).hexdigest()

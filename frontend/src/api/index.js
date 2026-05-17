@@ -3,9 +3,6 @@ import axios from 'axios'
 const request = axios.create({
   baseURL: '/api',
   timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 })
 
 // 请求拦截器：自动携带 token

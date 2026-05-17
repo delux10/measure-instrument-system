@@ -44,5 +44,6 @@ export function importInstruments(file) {
     url: '/instruments/import',
     method: 'post',
     data: formData,
+    timeout: 120000,
   })
 }

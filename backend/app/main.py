@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import os
 from app.config import settings
-from app.database import engine, Base
 from app.routers import (
     auth_router, department_router, user_router,
     instrument_router, instrument_category_router,
@@ -12,7 +10,7 @@ from app.routers import (
     execution_record_router, reconciliation_router,
     supervision_template_router, supervision_plan_router,
     supervision_execution_router, non_conformity_router,
-    workflow_router, borrow_router, repair_router
+    workflow_router, borrow_router, repair_router, upload_router,
 )
 
 app = FastAPI(
@@ -24,9 +22,6 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
-    if not settings.SECRET_KEY:
-        raise RuntimeError("SECRET_KEY 未设置，请通过环境变量 SECRET_KEY 配置")
-    Base.metadata.create_all(bind=engine)
     for subdir in ["certificates", "contracts", "photos", "evidence", "signatures"]:
         os.makedirs(os.path.join(settings.UPLOAD_DIR, subdir), exist_ok=True)
 
@@ -34,14 +29,11 @@ def on_startup():
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Static files for uploads
-app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # Health check
 @app.get("/api/health")
@@ -69,3 +61,4 @@ app.include_router(non_conformity_router, prefix="/api/non-conformities", tags=[
 app.include_router(workflow_router, prefix="/api/workflows", tags=["审批流程"])
 app.include_router(borrow_router, prefix="/api/borrows", tags=["借用管理"])
 app.include_router(repair_router, prefix="/api/repairs", tags=["维修管理"])
+app.include_router(upload_router, prefix="/api/uploads", tags=["文件服务"])
