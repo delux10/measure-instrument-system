@@ -10,13 +10,21 @@ import router from './router'
 
 const app = createApp(App)
 
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
 
 // 注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
+}
+
+// 启动时恢复用户状态
+import { useUserStore } from './store/user'
+const userStore = useUserStore(pinia)
+if (userStore.token) {
+  userStore.fetchUserInfo().catch(() => {})
 }
 
 app.mount('#app')

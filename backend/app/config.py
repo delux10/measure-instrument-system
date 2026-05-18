@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:80"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5200"]
     ADMIN_PASSWORD: str = ""
     SYSTEM_MANAGER_PASSWORD: str = ""
 

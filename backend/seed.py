@@ -1,89 +1,39 @@
-"""初始化数据库种子数据"""
-import sys
-import os
+"""初始化种子数据 v2"""
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 from app.database import SessionLocal
-from app.models.user import User
-from app.models.department import Department
-from app.models.instrument import InstrumentCategory
+from app.models import User, Department, InstrumentCategory
 from app.config import settings
-from app.utils.auth import get_password_hash
+from app.utils.auth import hash_password
 
-
-def init_database():
-    db = SessionLocal()
-
-    try:
-        # 1. Create admin user
-        admin = db.query(User).filter(User.username == "admin").first()
-        if not admin:
-            admin_pwd = settings.ADMIN_PASSWORD or "admin123"
-            admin = User(
-                username="admin",
-                password_hash=get_password_hash(admin_pwd),
-                name="系统管理员",
-                role="admin",
-                is_active=True
-            )
-            db.add(admin)
-            print("管理员账号已创建 (admin)")
-        else:
-            print("管理员账号已存在")
-
-        # 2. Create system_manager account
-        boss = db.query(User).filter(User.username == "dage").first()
-        if not boss:
-            boss_pwd = settings.SYSTEM_MANAGER_PASSWORD or "dage123"
-            boss = User(
-                username="dage",
-                password_hash=get_password_hash(boss_pwd),
-                name="胡炯",
-                role="system_manager",
-                is_active=True
-            )
-            db.add(boss)
-            print("体系管理员账号已创建 (dage)")
-
-        db.flush()
-
-        # 3. Create departments
-        root_dept = db.query(Department).filter(Department.name == "工艺质量管理科").first()
-        if not root_dept:
-            root_dept = Department(name="工艺质量管理科", level=1, manager_id=boss.id, measurer_id=boss.id)
-            db.add(root_dept)
-            db.flush()
-            print(f"部门已创建: {root_dept.name}")
-
-        # 4. Create default instrument categories
-        categories = [
-            ("长度类", 1),
-            ("力学类", 1),
-            ("电学类", 1),
-            ("热学类", 1),
-            ("理化类", 1),
-        ]
-        for cat_name, level in categories:
-            existing = db.query(InstrumentCategory).filter(
-                InstrumentCategory.name == cat_name,
-                InstrumentCategory.level == level,
-                InstrumentCategory.parent_id.is_(None)
-            ).first()
-            if not existing:
-                cat = InstrumentCategory(name=cat_name, level=level)
-                db.add(cat)
-                print(f"仪器分类已创建: {cat_name}")
-
-        db.commit()
-        print("\n数据库初始化完成！")
-
-    except Exception as e:
-        db.rollback()
-        print(f"初始化失败: {e}")
-        raise
-    finally:
-        db.close()
-
-
-if __name__ == "__main__":
-    init_database()
+db = SessionLocal()
+try:
+    if not db.query(User).filter(User.username == "admin").first():
+        db.add(User(username="admin", password_hash=hash_password(settings.ADMIN_PASSWORD or "admin123"),
+                     name="系统管理员", role="admin", is_active=True))
+        print("admin created")
+    if not db.query(User).filter(User.username == "dage").first():
+        db.add(User(username="dage", password_hash=hash_password(settings.SYSTEM_MANAGER_PASSWORD or "dage123"),
+                     name="胡炯", role="system_manager", is_active=True))
+        print("dage created")
+    db.flush()
+    dage = db.query(User).filter(User.username == "dage").first()
+    if not db.query(Department).filter(Department.name == "工艺质量管理科").first():
+        db.add(Department(name="工艺质量管理科", level=1, manager_id=dage.id if dage else None,
+                          measurer_id=dage.id if dage else None))
+        print("department created")
+    db.flush()
+    qc_dept = db.query(Department).filter(Department.name == "工艺质量管理科").first()
+    # Assign dage to QC department
+    if dage and not dage.department_id:
+        dage.department_id = qc_dept.id
+    for cat_name in ["长度类", "力学类", "电学类", "热学类", "理化类"]:
+        if not db.query(InstrumentCategory).filter(InstrumentCategory.name == cat_name, InstrumentCategory.parent_id.is_(None)).first():
+            db.add(InstrumentCategory(name=cat_name, level=1))
+    db.commit()
+    print("Seed completed.")
+except Exception as e:
+    db.rollback()
+    print(f"Seed error: {e}")
+finally:
+    db.close()

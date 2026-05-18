@@ -1,48 +1,45 @@
-from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+"""认证路由"""
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.user import User
-from app.schemas import UserCreate, UserResponse, Token
-from app.utils.auth import verify_password, get_password_hash, create_access_token, get_current_user
-from app.config import settings
+from app.models import User
+from app.schemas import LoginRequest
+from app.utils.auth import verify_password, create_token, get_current_user, hash_password
 
 router = APIRouter()
 
-@router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
-        )
+@router.post("/login")
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(401, detail="用户名或密码错误")
     if not user.is_active:
-        raise HTTPException(status_code=400, detail="账号已停用")
-    
-    access_token = create_access_token(
-        data={
-            "user_id": user.id,
-            "username": user.username,
-            "role": user.role,
-            "module_permissions": user.module_permissions,
-        },
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+        raise HTTPException(403, detail="账号已停用")
+    token = create_token({
+        "user_id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "module_permissions": user.module_permissions,
+    })
     return {
-        "access_token": access_token,
+        "access_token": token,
         "token_type": "bearer",
         "user": {
-            "id": user.id,
-            "username": user.username,
-            "name": user.name,
-            "role": user.role,
-            "department_id": user.department_id,
+            "id": user.id, "username": user.username, "name": user.name,
+            "role": user.role, "department_id": user.department_id,
             "module_permissions": user.module_permissions,
         }
     }
 
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+@router.get("/me")
+def me(user: User = Depends(get_current_user)):
+    return {"data": {
+        "id": user.id, "username": user.username, "name": user.name,
+        "role": user.role, "department_id": user.department_id,
+        "department_name": user.department.name if user.department else None,
+        "module_permissions": user.module_permissions,
+    }}
+
+@router.post("/logout")
+def logout():
+    return {"data": None, "meta": None}

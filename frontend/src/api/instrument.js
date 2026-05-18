@@ -1,6 +1,5 @@
 import request from './index'
 
-// === 仪器管理 ===
 export function getInstrumentList(params) {
   return request({ url: '/instruments/', method: 'get', params })
 }
@@ -21,29 +20,24 @@ export function deleteInstrument(id) {
   return request({ url: `/instruments/${id}`, method: 'delete' })
 }
 
-// === 仪器分类树 ===
-export function getInstrumentCategories() {
-  return request({ url: '/instrument-categories/', method: 'get' })
+export function clearAllInstruments() {
+  return request({ url: '/instruments/batch/clear', method: 'delete' })
 }
 
-// === 检测院列表 ===
-export function getCalibrationAgencies() {
-  return request({ url: '/calibration-agencies/', method: 'get' })
-}
-
-// === 到期预警 ===
-export function getExpiringInstruments() {
-  return request({ url: '/instruments/expiring', method: 'get' })
-}
-
-// === Excel 导入 ===
 export function importInstruments(file) {
   const formData = new FormData()
   formData.append('file', file)
-  return request({
-    url: '/instruments/import',
-    method: 'post',
-    data: formData,
-    timeout: 120000,
-  })
+  return request({ url: '/instruments/import', method: 'post', data: formData, timeout: 120000 })
+}
+
+export function exportInstruments(params) {
+  return request({ url: '/instruments/export/excel', method: 'get', params, responseType: 'blob' })
+}
+
+export function getInstrumentCategories() {
+  return request({ url: '/admin/categories', method: 'get' })
+}
+
+export function getCalibrationAgencies() {
+  return request({ url: '/calibration/agencies', method: 'get' })
 }
