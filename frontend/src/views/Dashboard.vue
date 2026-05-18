@@ -2,15 +2,15 @@
   <div style="max-width: 1200px; margin: 0 auto">
     <div style="margin-bottom: 24px">
       <h2 style="margin: 0 0 4px; font-size: 22px; font-weight: 700; color: #1a1a2e">
-        👋 欢迎回来，{{ userStore.userName }}
+        Welcome, {{ userStore.userName }}
       </h2>
-      <p style="margin: 0; color: #909399; font-size: 14px">{{ currentDate }} · 系统运行正常</p>
+      <p style="margin: 0; color: #909399; font-size: 14px">{{ currentDate }}</p>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px">
       <div v-for="(card, idx) in statsCards" :key="idx"
         style="background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.04); cursor: default; transition: all 0.25s ease;"
-        class="stat-card dark-card"
+        class="stat-card"
       >
         <div style="display: flex; align-items: flex-start; justify-content: space-between">
           <div>
@@ -32,12 +32,12 @@
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">
-      <div style="background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.04);" class="dark-card">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #303133">快捷操作</h3>
+      <div style="background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.04);">
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #303133">Quick Actions</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
           <div v-for="(action, idx) in quickActions" :key="idx"
             style="display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #f5f7fa;"
-            class="quick-action-item dark-action"
+            class="quick-action-item"
             @click="action.handler"
           >
             <div :style="{
@@ -55,11 +55,11 @@
         </div>
       </div>
 
-      <div style="background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.04);" class="dark-card">
-        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #303133">最近动态</h3>
+      <div style="background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.04);">
+        <h3 style="margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #303133">Recent Activity</h3>
         <div v-if="recentActivities.length === 0" style="text-align: center; padding: 32px 0; color: #c0c4cc">
           <el-icon :size="40" style="margin-bottom: 8px"><Document /></el-icon>
-          <p style="margin: 0; font-size: 13px">暂无动态</p>
+          <p style="margin: 0; font-size: 13px">No recent activity</p>
         </div>
         <div v-for="(act, idx) in recentActivities" :key="idx" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.04);">
           <div :style="{ width: '8px', height: '8px', borderRadius: '50%', background: act.color, flexShrink: '0' }"></div>
@@ -77,16 +77,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
-import {
-  DataBoard, List, Calendar, Document, WarningFilled,
-  Plus, Edit, Setting
-} from '@element-plus/icons-vue'
+import { DataBoard, List, Calendar, Document, WarningFilled, Plus, Edit, Setting } from '@element-plus/icons-vue'
 import request from '../api/index'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-const currentDate = new Date().toLocaleDateString('zh-CN', {
+const currentDate = new Date().toLocaleDateString('en-US', {
   year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
 })
 
@@ -95,55 +92,40 @@ const recentActivities = ref([])
 
 async function fetchDashboardData() {
   try {
-    const now = new Date()
+    const [instRes, calRes, expiringRes] = await Promise.all([
+      request({ url: '/instruments/', method: 'get', params: { page_size: 9999 } }),
+      request({ url: '/calibration/records', method: 'get', params: { page_size: 9999 } }),
+      request({ url: '/calibration/expiring', method: 'get', params: { days: 30 } })
+    ])
 
-    // 获取仪器列表 → 总数 & 过期数
-    const instRes = await request({ url: '/instruments/', method: 'get', params: { page_size: 9999 } })
-    const instruments = Array.isArray(instRes.data) ? instRes.data :
-                        instRes.data?.results || instRes.data?.items || []
+    const instruments = instRes.data?.data || []
+    const records = calRes.data?.data || []
+    const expiring = expiringRes.data?.data || []
+
     const totalInstruments = instruments.length
-    const overdueCount = instruments.filter(i => {
-      if (!i.next_cal_date) return false
-      return new Date(i.next_cal_date) < now
-    }).length
-
-    // 获取到期预警 (30天内)
-    const expiringRes = await request({ url: '/instruments/expiring', method: 'get', params: { days: 30 } })
-    const expiring = Array.isArray(expiringRes.data) ? expiringRes.data : []
-
-    // 获取检定记录 → 待检定数
-    const calRes = await request({ url: '/calibration-records/', method: 'get', params: { page_size: 9999 } })
-    const records = Array.isArray(calRes.data) ? calRes.data :
-                    calRes.data?.results || calRes.data?.items || []
     const pendingCal = records.filter(r => !r.actual_date).length
+    const now = new Date()
+    const overdueCount = records.filter(r => r.plan_date && !r.actual_date && new Date(r.plan_date) < now).length
 
     statsCards.value = [
-      { label: '仪器总数', value: String(totalInstruments), icon: DataBoard,
-        bg: 'rgba(64,158,255,0.1)', color: '#409EFF', subtext: '全厂设备' },
-      { label: '待检定', value: String(pendingCal), icon: Calendar,
-        bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', subtext: '计划待执行' },
-      { label: '即将到期', value: String(expiring.length), icon: WarningFilled,
-        bg: 'rgba(245,108,108,0.1)', color: '#F56C6C', subtext: '30天内到期' },
-      { label: '已过期', value: String(overdueCount), icon: List,
-        bg: 'rgba(144,147,153,0.1)', color: '#909399', subtext: '请及时处理' },
+      { label: 'Instruments', value: String(totalInstruments), icon: DataBoard, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', subtext: 'Total instruments' },
+      { label: 'Pending Cal', value: String(pendingCal), icon: Calendar, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', subtext: 'Awaiting calibration' },
+      { label: 'Expiring Soon', value: String(expiring.length), icon: WarningFilled, bg: 'rgba(245,108,108,0.1)', color: '#F56C6C', subtext: 'Within 30 days' },
+      { label: 'Overdue', value: String(overdueCount), icon: List, bg: 'rgba(144,147,153,0.1)', color: '#909399', subtext: 'Past due date' },
     ]
 
-    // 最近动态：取最近5条检定记录
     const recent = records.slice(-5).reverse()
     recentActivities.value = recent.map(r => ({
-      text: r.instrument?.name
-        ? `仪器「${r.instrument.name}」${r.actual_date ? '完成检定' : '计划检定'}`
-        : `检定记录 #${r.id} ${r.actual_date ? '已完成' : '待执行'}`,
+      text: `Record #${r.id} ${r.actual_date ? 'completed' : 'scheduled'}`,
       time: r.plan_date || r.created_at || '',
       color: r.actual_date ? '#67C23A' : '#E6A23C',
     }))
-  } catch (e) {
-    // 如果后端未启动，使用空数据
+  } catch {
     statsCards.value = [
-      { label: '仪器总数', value: '0', icon: DataBoard, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', subtext: '全厂设备' },
-      { label: '待检定', value: '0', icon: Calendar, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', subtext: '计划待执行' },
-      { label: '即将到期', value: '0', icon: WarningFilled, bg: 'rgba(245,108,108,0.1)', color: '#F56C6C', subtext: '30天内到期' },
-      { label: '已过期', value: '0', icon: List, bg: 'rgba(144,147,153,0.1)', color: '#909399', subtext: '请及时处理' },
+      { label: 'Instruments', value: '0', icon: DataBoard, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', subtext: 'Total instruments' },
+      { label: 'Pending Cal', value: '0', icon: Calendar, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', subtext: 'Awaiting calibration' },
+      { label: 'Expiring', value: '0', icon: WarningFilled, bg: 'rgba(245,108,108,0.1)', color: '#F56C6C', subtext: 'Within 30 days' },
+      { label: 'Overdue', value: '0', icon: List, bg: 'rgba(144,147,153,0.1)', color: '#909399', subtext: 'Past due date' },
     ]
     recentActivities.value = []
   }
@@ -152,32 +134,24 @@ async function fetchDashboardData() {
 const quickActions = computed(() => {
   const actions = []
   if (userStore.canAccessModule('instruments')) {
-    actions.push({ name: '新增仪器', desc: '录入新设备信息', icon: Plus, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', handler: () => router.push('/instruments') })
+    actions.push({ name: 'Add Instrument', desc: 'Register new device', icon: Plus, bg: 'rgba(64,158,255,0.1)', color: '#409EFF', handler: () => router.push('/instruments') })
   }
   if (userStore.canAccessModule('calibration')) {
-    actions.push({ name: '检定记录', desc: '登记检定结果', icon: Edit, bg: 'rgba(103,194,58,0.1)', color: '#67C23A', handler: () => router.push('/calibration') })
+    actions.push({ name: 'Calibration', desc: 'Record calibration results', icon: Edit, bg: 'rgba(103,194,58,0.1)', color: '#67C23A', handler: () => router.push('/calibration') })
   }
   if (userStore.canAccessModule('contracts')) {
-    actions.push({ name: '合同对账', desc: '比对合同与执行', icon: Document, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', handler: () => router.push('/contract') })
+    actions.push({ name: 'Contracts', desc: 'Contract management', icon: Document, bg: 'rgba(230,162,60,0.1)', color: '#E6A23C', handler: () => router.push('/contract') })
   }
   if (userStore.isAdmin) {
-    actions.push({ name: '系统设置', desc: '用户与权限管理', icon: Setting, bg: 'rgba(144,147,153,0.1)', color: '#909399', handler: () => router.push('/system/users') })
+    actions.push({ name: 'System', desc: 'User & permission mgmt', icon: Setting, bg: 'rgba(144,147,153,0.1)', color: '#909399', handler: () => router.push('/system/users') })
   }
   return actions
 })
 
-onMounted(() => {
-  fetchDashboardData()
-})
+onMounted(() => { fetchDashboardData() })
 </script>
 
 <style scoped>
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.06) !important;
-}
-.quick-action-item:hover {
-  background: rgba(64,158,255,0.06) !important;
-  transform: translateX(2px);
-}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.06) !important; }
+.quick-action-item:hover { background: rgba(64,158,255,0.06) !important; transform: translateX(2px); }
 </style>

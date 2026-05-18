@@ -174,7 +174,7 @@ async function fetchUsers() {
   loading.value = true
   try {
     const res = await getUserList({ search: searchQuery.value })
-    userList.value = res.data
+    userList.value = res.data.data || res.data || []
   } catch (e) {
     ElMessage.error('获取用户列表失败')
   } finally {
@@ -185,7 +185,7 @@ async function fetchUsers() {
 async function fetchDepartments() {
   try {
     const res = await getDepartmentList()
-    departments.value = res.data
+    departments.value = res.data.data || res.data || []
   } catch (e) {
     // ignore
   }

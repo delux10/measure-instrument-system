@@ -8,7 +8,7 @@ const routes = [
     children: [
       { path: 'dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue'), meta: { title: '仪表盘', module: 'dashboard' } },
       { path: 'instruments', name: 'Instruments', component: () => import('../views/instruments/InstrumentList.vue'), meta: { title: '仪器台账', module: 'instruments' } },
-      { path: 'calibration', name: 'Calibration', component: () => import('../views/calibration/CalibrationPlan.vue'), meta: { title: '检定计划', module: 'calibration' } },
+      { path: 'calibration', name: 'Calibration', component: () => import('../views/calibration/CalibrationList.vue'), meta: { title: '检定管理', module: 'calibration' } },
       { path: 'contract', name: 'Contracts', component: () => import('../views/contract/ContractList.vue'), meta: { title: '合同管理', module: 'contracts' } },
       { path: 'supervision', name: 'Supervision', component: () => import('../views/supervision/SupervisionList.vue'), meta: { title: '监督管理', module: 'supervision' } },
       { path: 'system/users', name: 'Users', component: () => import('../views/system/UserManagement.vue'), meta: { title: '用户管理', module: 'user_management' } },
