@@ -4,7 +4,7 @@ from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Instrument, User
+from app.models import Instrument, User, Department
 from app.schemas import InstrumentCreate, InstrumentUpdate, ImportResult
 from app.utils.auth import get_current_user, require_role, apply_department_filter
 from app.utils.audit import log
@@ -16,6 +16,19 @@ def _auto_code(db: Session) -> str:
     today = date.today().strftime("%Y%m%d")
     return f"INS-{today}-{uuid.uuid4().hex[:6].upper()}"
 
+def _resolve_department(db: Session, name: str) -> int | None:
+    """根据部门名称查找或创建部门，返回 department_id"""
+    if not name or not name.strip():
+        return None
+    name = name.strip()
+    dept = db.query(Department).filter(Department.name == name).first()
+    if dept:
+        return dept.id
+    dept = Department(name=name, level=1)
+    db.add(dept)
+    db.flush()
+    return dept.id
+
 # ── 列表（含搜索、分页） ──
 @router.get("/")
 def list_instruments(
@@ -26,13 +39,26 @@ def list_instruments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from sqlalchemy import String, or_
     query = db.query(Instrument)
-    query = apply_department_filter(query, Instrument, current_user)
+    # 部门过滤：按台账 fields["所属部门"] 匹配用户部门名称
+    if current_user.role not in ("admin", "system_manager"):
+        dept = current_user.department
+        if dept and dept.name == "工艺质量管理科":
+            pass  # 质量管理科看全部
+        elif dept:
+            query = query.filter(
+                or_(
+                    Instrument.fields["所属部门"].astext == dept.name,
+                    Instrument.department_id == current_user.department_id,
+                )
+            )
+        else:
+            query = query.filter(Instrument.department_id == current_user.department_id)
     if department_id:
         query = query.filter(Instrument.department_id == department_id)
     if search:
         query = query.filter(Instrument.fields.cast(String).ilike(f"%{search}%"))
-    from sqlalchemy import String
     total = query.count()
     items = query.order_by(Instrument.updated_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return {"data": _serialize_instruments(items, db), "meta": {"total": total, "page": page, "page_size": page_size}}
@@ -117,12 +143,13 @@ def import_instruments(file: UploadFile = File(...), db: Session = Depends(get_d
         for i, h in enumerate(headers):
             v = row[i] if i < len(row) else None
             if v is None: fields[h] = ""
-            elif isinstance(v, datetime): fields[h] = v.strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(v, datetime): fields[h] = v.strftime("%Y-%m-%d")
             elif isinstance(v, date): fields[h] = v.strftime("%Y-%m-%d")
             else: fields[h] = str(v).strip()
         if all(not v for v in fields.values()):
             continue
-        batch.append(Instrument(code=_auto_code(db), department_id=current_user.department_id, fields=fields))
+        dept_id = _resolve_department(db, fields.get("所属部门", "")) or current_user.department_id
+        batch.append(Instrument(code=_auto_code(db), department_id=dept_id, fields=fields))
         success += 1
         if len(batch) >= 100:
             db.add_all(batch); db.commit(); batch = []

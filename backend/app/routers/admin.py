@@ -1,6 +1,7 @@
 """系统管理路由 — 用户、部门、分类"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.database import get_db
 from app.models import User, Department, InstrumentCategory, AuditLog
 from app.schemas import UserCreate, UserUpdate, DepartmentCreate, DepartmentUpdate
@@ -58,9 +59,19 @@ def delete_user(user_id: int, db: Session = Depends(get_db),
     db.delete(user); db.commit()
     return {"data": None}
 
-# ── 部门列表 ──
+# ── 部门列表（含台账「所属部门」自动同步）─
 @router.get("/departments")
 def list_departments(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # 从台账 fields JSONB 提取所有唯一的「所属部门」，自动创建缺失的部门
+    rows = db.execute(text(
+        "SELECT DISTINCT fields->>'所属部门' AS name FROM instruments "
+        "WHERE fields ? '所属部门' AND fields->>'所属部门' IS NOT NULL AND trim(fields->>'所属部门') != ''"
+    )).fetchall()
+    for (name,) in rows:
+        name = name.strip()
+        if not db.query(Department).filter(Department.name == name).first():
+            db.add(Department(name=name, level=1))
+    db.commit()
     depts = db.query(Department).order_by(Department.level, Department.id).all()
     return {"data": [{"id": d.id, "name": d.name, "parent_id": d.parent_id, "level": d.level,
                       "manager_id": d.manager_id, "measurer_id": d.measurer_id, "cost_center": d.cost_center}

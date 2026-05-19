@@ -21,6 +21,7 @@
       <div style="display: flex; justify-content: space-between; margin-bottom: 16px">
         <div>
           <el-button type="primary" @click="openCreate">新增检定记录</el-button>
+          <el-button type="success" @click="openGenerate">生成检定计划</el-button>
           <el-button type="warning" @click="openExpiring">即将到期预警</el-button>
         </div>
         <div>
@@ -113,6 +114,30 @@
       </el-table>
     </el-dialog>
 
+    <!-- 生成检定计划对话框 -->
+    <el-dialog v-model="generateVisible" title="生成检定计划" width="480px">
+      <el-form label-width="80px">
+        <el-form-item label="选择月份">
+          <el-date-picker v-model="generateForm.year_month" type="month" placeholder="选择年月" value-format="YYYY-MM" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="部门">
+          <el-select v-model="generateForm.department_id" placeholder="全部部门" clearable style="width: 100%">
+            <el-option v-for="d in departments" :key="d.id" :label="d.name" :value="d.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <div v-if="generateResult" style="margin-top:12px;padding:12px;background:#f5f7fa;border-radius:4px">
+        <p style="margin:0 0 4px;font-weight:600;color:#303133">生成结果</p>
+        <p style="margin:2px 0;font-size:13px;color:#67c23a">创建：{{ generateResult.created }} 条</p>
+        <p style="margin:2px 0;font-size:13px;color:#909399">跳过（日期不符）：{{ generateResult.skipped_invalid_date }} 条</p>
+        <p style="margin:2px 0;font-size:13px;color:#e6a23c">跳过（已存在）：{{ generateResult.skipped_existing }} 条</p>
+      </div>
+      <template #footer>
+        <el-button @click="generateVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="generating" :disabled="!generateForm.year_month" @click="handleGenerate">开始生成</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 检测院管理对话框 -->
     <el-dialog v-model="agencyDialogVisible" title="检测院管理" width="500px">
       <el-table :data="agencies" border stripe>
@@ -143,8 +168,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getCalibrationList, createCalibration, updateCalibration, getExpiringList, getAgencyList, createAgency } from '../../api/calibration'
+import { getCalibrationList, createCalibration, updateCalibration, getExpiringList, getAgencyList, createAgency, generateCalibrationPlan } from '../../api/calibration'
 import { getInstrumentList } from '../../api/instrument'
+import { getDepartmentList } from '../../api/system'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -174,6 +200,11 @@ const expiringList = ref([])
 const expiringLoading = ref(false)
 const agencyDialogVisible = ref(false)
 const newAgency = ref({ name: '', contact_person: '', contact_phone: '' })
+const generateVisible = ref(false)
+const generating = ref(false)
+const generateForm = ref({ year_month: '', department_id: null })
+const generateResult = ref(null)
+const departments = ref([])
 
 async function fetchData() {
   loading.value = true
@@ -244,6 +275,28 @@ async function openExpiring() {
   } catch { ElMessage.error('获取预警失败') } finally { expiringLoading.value = false }
 }
 
+function openGenerate() {
+  generateForm.value = { year_month: '', department_id: null }
+  generateResult.value = null
+  generateVisible.value = true
+}
+
+async function handleGenerate() {
+  if (!generateForm.value.year_month) return
+  generating.value = true
+  generateResult.value = null
+  try {
+    const res = await generateCalibrationPlan(generateForm.value.year_month, generateForm.value.department_id)
+    generateResult.value = res.data.data || res.data
+    ElMessage.success('检定计划生成完成')
+    fetchData()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '生成失败')
+  } finally {
+    generating.value = false
+  }
+}
+
 async function handleCreateAgency() {
   if (!newAgency.value.name) { ElMessage.warning('请输入名称'); return }
   try {
@@ -258,5 +311,6 @@ async function handleCreateAgency() {
 onMounted(async () => {
   fetchData()
   try { const res = await getAgencyList(); agencies.value = res.data.data || [] } catch {}
+  getDepartmentList().then(res => { departments.value = res.data.data || res.data || [] }).catch(() => {})
 })
 </script>
